@@ -15,6 +15,10 @@
 
 /******************************************************************************/
 
+#define MARCH_EPSILON 1.0e-4f
+
+/******************************************************************************/
+
 class BoundingBox;
 
 /******************************************************************************/
@@ -130,7 +134,7 @@ Material* VoxelBuffer::getMaterial() const
  * Intersection
  ******************************************************************************/
 
-bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& ctx, Hit& hit)
+bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& context, Hit& hit)
 {
     P entered, exited;
 
@@ -139,8 +143,7 @@ bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& ctx, Hit& hit)
     }
 
     // Basic color accumulation:
-    RayMarch rm = rayMarch(ctx, *this, entered, exited);
-
+    RayMarch rm       = rayMarch(context, *this, entered, exited);
     hit.color         = rm.color;
     hit.transmittance = rm.transmittance;
 
@@ -159,9 +162,8 @@ bool VoxelBuffer::center(const P& p, P& center) const
         return false;
     }
 
-    P p1 = this->bounds.getP1();
-    P p2 = this->bounds.getP2();
-
+    auto p1   = this->bounds.getP1();
+    auto p2   = this->bounds.getP2();
     float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
     float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
     float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
@@ -186,9 +188,8 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
         return false;
     }
 
-    P p1 = this->bounds.getP1();
-    P p2 = this->bounds.getP2();
-
+    auto p1   = this->bounds.getP1();
+    auto p2   = this->bounds.getP2();
     float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
     float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
     float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
@@ -209,39 +210,32 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
  */
 bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
 {
-    float dx, dy, dz;
-    int xCell, yCell, zCell;
-
-    P p1 = this->bounds.getP1();
-    P p2 = this->bounds.getP2();
-
-    dx = unitRange(x(p), x(p1), x(p2));
-    dy = unitRange(y(p), y(p1), y(p2));
-    dz = unitRange(z(p), z(p1), z(p2));
-
-    float threshold = 1.0e-6f;
+    auto p1  = this->bounds.getP1();
+    auto p2  = this->bounds.getP2();
+    float dx = unitRange(x(p), x(p1), x(p2));
+    float dy = unitRange(y(p), y(p1), y(p2));
+    float dz = unitRange(z(p), z(p1), z(p2));
 
     // Needed for rounding errors: if the number is smaller than the threshold,
     // it just becomes 0.0f
-    if (fabs(dx) < threshold) {
+    if (fabs(dx) < MARCH_EPSILON) {
         dx = 0.0f;
     }
-    if (fabs(dy) < threshold) {
+    if (fabs(dy) < MARCH_EPSILON) {
         dy = 0.0f;
     }
-    if (fabs(dz) < threshold) {
+    if (fabs(dz) < MARCH_EPSILON) {
         dz = 0.0f;
     }
 
-    float xLoc  = dx * (((float)this->dim.x) - this->getVoxelWidth());
-    float yLoc  = dy * (((float)this->dim.y) - this->getVoxelHeight());
-    float zLoc  = dz * (((float)this->dim.z) - this->getVoxelDepth());
-    xCell = (int)floor(xLoc);
-    yCell = (int)floor(yLoc);
-    zCell = (int)floor(zLoc);
+    float xLoc  = dx * ((static_cast<float>(this->dim.x)) - this->getVoxelWidth());
+    float yLoc  = dy * ((static_cast<float>(this->dim.y)) - this->getVoxelHeight());
+    float zLoc  = dz * ((static_cast<float>(this->dim.z)) - this->getVoxelDepth());
+    float xCell = static_cast<int>(xLoc);
+    float yCell = static_cast<int>(yLoc);
+    float zCell = static_cast<int>(zLoc);
 
     if (!this->valid(xCell, yCell, zCell)) {
-        //clog << "INVALID => ("<<xCell<<","<<yCell<<","<<zCell<<")"<<endl;
         return false;
     }
 
@@ -406,27 +400,24 @@ float Q(const VoxelBuffer& vb
            Q(vb, kappa, step, iterations - 1, X + N, N);
 }
 
-RayMarch rayMarch(const RenderContext& ctx
+RayMarch rayMarch(const RenderContext& context
                  ,const VoxelBuffer& vb
                  ,const P& start
                  ,const P& end
                  ,float (*densityFunction)(const Voxel& voxel, const P& X, void* densityData)
                  ,void* densityData)
 {
-    float step         = ctx.getStep();
-    float kappa        = 1.0f;
-    float T            = 1.0f;
-    bool  interpolate  = ctx.getInterpolation();
-
-    Material* material = vb.getMaterial();
-
-    // Only take the first light for now:
-    list<Light*> lights = ctx.getLights();
-    Color accumColor    = Color(0.0f, 0.0f, 0.0f);
+    float step        = context.getStep();
+    float kappa       = 1.0f;
+    float T           = 1.0f;
+    bool interpolate  = context.getInterpolation();
+    auto material     = vb.getMaterial();
+    auto lights       = context.getLights();
+    auto accumColor   = Color(0.0f, 0.0f, 0.0f);
 
     P X;
     V N;
-    int iterations = traverse(step, FLT_EPSILON, start, end, X, N);
+    int iterations = traverse(step, MARCH_EPSILON, start, end, X, N);
 
     for (int i=0; i<iterations; i++, X += N) {
 
@@ -459,14 +450,14 @@ RayMarch rayMarch(const RenderContext& ctx
 
         P LX;
         V LN;
-        float offset = (2.0f * step) + FLT_EPSILON;
+        float offset = (2.0f * step) + MARCH_EPSILON;
 
         // For every light in the scene:
         auto li = lights.begin();
 
         for (int k=0; li != lights.end(); li++, k++) {
 
-            Light* light = *li;
+            auto light = *li;
 
             int stepsToLight = traverse(step, offset, center, light->getPosition(), LX, LN);
 

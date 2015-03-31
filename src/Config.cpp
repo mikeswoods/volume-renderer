@@ -516,7 +516,8 @@ float OldConfigurationReader::readSingleDensity(int count, string line)
         throw runtime_error(msg.str());
     }
 
-    return value;
+    // Multiply the density value by the voxel space width:
+    return value * this->XYZC.x;
 }
 
 /**
@@ -545,9 +546,9 @@ void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
 
         line = trim(line);
 
-        // Multiply the density value by the voxel space width:
+        float density = this->readSingleDensity(count++, line);
 
-        (*vb)(index++) = Voxel(readSingleDensity(count++, line) * this->XYZC.x);
+        (*vb)(index++) = Voxel(density);
     }
 
     this->objects.push_back(vb);
