@@ -1,0 +1,37 @@
+#ifndef _RAY_H
+#define _RAY_H
+
+#include <iostream>
+#include "Color.h"
+#include "R3.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// Parametric ray implementation
+////////////////////////////////////////////////////////////////////////////////
+
+class Ray
+{
+    public:
+        P origin;    // Ray origin
+        V direction; // Ray direction
+
+        Ray() {};
+        Ray(const P &origin, const V &direction);
+        Ray(const Ray &other);
+};
+
+std::ostream& operator<<(std::ostream &s, Ray &r);
+
+////////////////////////////////////////////////////////////////////////////////
+// Ray hit
+////////////////////////////////////////////////////////////////////////////////
+
+class Hit
+{
+    public:
+        float distance;
+        Color color;
+        float transmittance;
+};
+
+#endif

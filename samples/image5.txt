@@ -1,0 +1,42 @@
+STEP 0.005
+XYZC 100 100 100
+BRGB 0.17 0.17 0.15
+MRGB 0.96 0.86 0.66
+FILE Image5.bmp
+RESO 640 480
+EYEP 0.5 0.5 1.75
+VDIR -0.5 -0.5 -2
+UVEC 0 1 0
+FOVY 45
+SEED 1337
+LPOS 2 1 2
+LCOL 1 1 1
+LPOS 0 0 0
+LCOL 1 0.2 0.2
+
+5
+
+pyroclastic
+0 0 0
+0.4
+20 16 3 0.2
+
+pyroclastic
+0 0 0
+0.8
+10 4 3 0.7
+
+pyroclastic
+0 0 0
+1
+5 3 5 0.7
+
+pyroclastic
+0 0 0
+0.9
+3 2 5 0.6
+
+pyroclastic
+0 0 0
+1.1
+0.5 1 0.5 0.6

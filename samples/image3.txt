@@ -1,0 +1,27 @@
+STEP 0.005
+XYZC 100 100 100
+BRGB 0.37 0.37 0.35
+MRGB 0.96 0.96 0.96
+FILE Image3.bmp
+RESO 640 480
+EYEP 0 0 2
+VDIR 0 0 -1
+UVEC 0 1 0
+FOVY 45
+SEED 666
+LPOS 0 1 1
+LCOL 1 1 1
+LPOS 0 -1 1
+LCOL 1 1 1
+
+2
+
+sphere
+1 1 -0.5
+1
+300 0 0 0 ../samples/Earth.bmp
+
+pyroclastic
+-1 -1 -0.5
+0.8
+15 16 1.25 1.25 ../samples/Earth.bmp
