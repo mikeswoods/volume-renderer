@@ -5,6 +5,7 @@
 #include <fstream>
 #include <list>
 #include <string>
+#include <memory>
 #include <glm/glm.hpp>
 #include <optionparser.h>
 #include <CImg.h>
@@ -94,7 +95,6 @@ const option::Descriptor usage[] =
     ,option::Arg::Optional
     ,"  -D/--depth \t\tGrid depth (Z), in cells"
   },
- 
   {
      UNKNOWN
     ,0
@@ -110,37 +110,55 @@ const option::Descriptor usage[] =
 
 /******************************************************************************/
 
-Configuration readConfig(string filename)
+static shared_ptr<Configuration> readConfig(string filename
+	                                       ,int version = 1
+	                                       ,bool skipHeader = false)
 {
 	ifstream configFile(filename.c_str());
-	Configuration config;
-	config.read(configFile);
+	shared_ptr<Configuration> config(nullptr);
+
+	switch (version) {
+		case 2:
+			{
+				config = make_shared<NewConfigurationReader>();
+			}
+			break;
+		case 1:
+		default:
+			{
+				config = make_shared<OldConfigurationReader>();
+			}
+			break;
+	}
+
+	config->read(configFile, skipHeader);
 	configFile.close();
+
 	return config;
 }
 
-void intializeScene(const Configuration& config
+void intializeScene(shared_ptr<Configuration> config
 	               ,float& step
 	               ,Camera& camera
 	               ,Color& bgColor
 	               ,string& filename
 	               ,ivec2& resolution)
 {
-	step = config.STEP;
+	step = config->STEP;
 
 	// Camera
-	camera.setPosition(P(config.EYEP[0],config.EYEP[1],config.EYEP[2]));
-	camera.setViewDir(V(config.VDIR[0],config.VDIR[1],config.VDIR[2]));
-	camera.setUp(V(config.UVEC[0],config.UVEC[1],config.UVEC[2]));
-	camera.setFOV(config.FOVY);
+	camera.setPosition(P(config->EYEP.x, config->EYEP.y, config->EYEP.z));
+	camera.setViewDir(V(config->VDIR.x, config->VDIR.y, config->VDIR.z));
+	camera.setUp(V(config->UVEC.x, config->UVEC.y, config->UVEC.z));
+	camera.setFOV(config->FOVY);
 
 	// Materials
-	bgColor = Color(config.BRGB[0],config.BRGB[1],config.BRGB[2]);
+	bgColor = Color(config->BRGB.r, config->BRGB.g, config->BRGB.b);
 
-	filename   = config.FILE; 
-    resolution = config.RESO;
+	filename   = config->FILE; 
+    resolution = config->RESO;
 
-	camera.setAspectRatio(static_cast<float>(config.RESO.x) / static_cast<float>(config.RESO.y));
+	camera.setAspectRatio(static_cast<float>(config->RESO.x) / static_cast<float>(config->RESO.y));
 }
 
 static void printUsageAndExit(const char* name)
@@ -214,15 +232,15 @@ int main(int argc, char** argv)
 		doInterpolation = true;
 	}	
 
-	Configuration config = readConfig(argv[1]);
+	auto config = readConfig(argv[1], 1, false);
 
 	intializeScene(config, step, camera, bgColor, filename, resolution);
 
-	cout << config << endl
+	cout << *config << endl
 	     << camera << endl;
 
 	CImg<unsigned char> output(resolution.x, resolution.y, 1, 3, 0);
-	RenderContext context(step, config.getObjects(), config.getLights(), bgColor);
+	RenderContext context(step, config->getObjects(), config->getLights(), bgColor);
 	context.setInterpolation(doInterpolation);
 
 	render(output, resolution.x, resolution.y, camera, context);

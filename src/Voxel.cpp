@@ -14,23 +14,23 @@
 #include "Utils.h"
 #include "Voxel.h"
 
+/******************************************************************************/
+
 class BoundingBox;
 
-using namespace std;
+/******************************************************************************/
 
-////////////////////////////////////////////////////////////////////////////////
-// Voxel buffer element
-////////////////////////////////////////////////////////////////////////////////
+using namespace std;
+using namespace Utils;
+
+/******************************************************************************/
 
 ostream& operator<<(ostream &s, const Voxel &v)
 {
-    return s << "{ light = "   << v.light 
-             << ", density = " << v.density << " }";
+    return s << "{ light = " << v.light  << ", density = " << v.density << " }";
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Voxel buffer
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
 
 VoxelBuffer::VoxelBuffer(int xDim
                         ,int yDim
@@ -53,10 +53,12 @@ VoxelBuffer::VoxelBuffer(int xDim
 VoxelBuffer::~VoxelBuffer()
 {
     delete this->buffer;
-    this->buffer = NULL;
+    this->buffer = nullptr;
 }
 
-// Indexing and assignment operations //////////////////////////////////////////
+/*******************************************************************************
+ * Indexing and assignment operations
+ ******************************************************************************/
 
 Voxel* VoxelBuffer::operator() (int i, int j, int k) const 
 {
@@ -83,7 +85,9 @@ Material* VoxelBuffer::getMaterial() const
     return this->material;
 }
 
-// Intersection ////////////////////////////////////////////////////////////////
+/*******************************************************************************
+ * Intersection
+ ******************************************************************************/
 
 bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& ctx, Hit& hit)
 {
@@ -102,8 +106,10 @@ bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& ctx, Hit& hit)
     return true;
 }
 
-// Sets center to the center point of the voxel the point p falls within. If 
-// this method returns false, point o does not fall within a voxel
+/**
+ * Sets center to the center point of the voxel the point p falls within. 
+ * If this method returns false, point o does not fall within a voxel
+ */
 bool VoxelBuffer::center(const P& p, P& center) const
 {   
     int i,j,k;
@@ -115,22 +121,24 @@ bool VoxelBuffer::center(const P& p, P& center) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    float dx  = (x(p2) - x(p1)) / (float)this->xDim;
-    float dy  = (y(p2) - y(p1)) / (float)this->yDim;
-    float dz  = (z(p2) - z(p1)) / (float)this->zDim;
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->xDim);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->yDim);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->zDim);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
 
-    center = P(x(p1) + dx2 + (dx * (float)i)
-              ,y(p1) + dy2 + (dy * (float)j)
-              ,z(p1) + dz2 + (dz * (float)k));
+    center = P(x(p1) + dx2 + (dx * static_cast<float>(i))
+              ,y(p1) + dy2 + (dy * static_cast<float>(j))
+              ,z(p1) + dz2 + (dz * static_cast<float>(k)));
 
     return true;
 }
 
-// Sets center to the center point of the voxel the point p falls within. If \
-// this method returns false, the voxel at (i,j,k) does not exist
+/**
+ * Sets center to the center point of the voxel the point p falls within. 
+ * If this method returns false, the voxel at (i,j,k) does not exist
+ */
 bool VoxelBuffer::center(int i, int j, int k, P& center) const
 {
     if (!this->valid(i, j, k)) {
@@ -140,22 +148,24 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    float dx  = (x(p2) - x(p1)) / (float)this->xDim;
-    float dy  = (y(p2) - y(p1)) / (float)this->yDim;
-    float dz  = (z(p2) - z(p1)) / (float)this->zDim;
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->xDim);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->yDim);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->zDim);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
 
-    center = P(x(p1) + dx2 + (dx * (float)i)
-              ,y(p1) + dy2 + (dy * (float)j)
-              ,z(p1) + dz2 + (dz * (float)k));
+    center = P(x(p1) + dx2 + (dx * static_cast<float>(i))
+              ,y(p1) + dy2 + (dy * static_cast<float>(j))
+              ,z(p1) + dz2 + (dz * static_cast<float>(k)));
 
     return true;
 }
 
-// Returns the (i,j,k) coordinates of the voxel point p falls within. If this
-// method returns false, point p is not within a voxel
+/**
+ * Returns the (i,j,k) coordinates of the voxel point p falls within. If this
+ * method returns false, point p is not within a voxel
+ */
 bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
 {
     float dx, dy, dz;
@@ -164,9 +174,9 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    dx = Utils::unitRange(x(p), x(p1), x(p2));
-    dy = Utils::unitRange(y(p), y(p1), y(p2));
-    dz = Utils::unitRange(z(p), z(p1), z(p2));
+    dx = unitRange(x(p), x(p1), x(p2));
+    dy = unitRange(y(p), y(p1), y(p2));
+    dz = unitRange(z(p), z(p1), z(p2));
 
     float threshold = 1.0e-6f;
 
@@ -201,14 +211,18 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
     return true;
 }
 
- Voxel* VoxelBuffer::positionToVoxel(const P& p) const
- {
+/**
+ * Converts a postion to a Voxel instance
+ */
+Voxel* VoxelBuffer::positionToVoxel(const P& p) const
+{
     int i,j,k;
+    return positionToIndex(p,i,j,k) ? (*this)(i,j,k) : nullptr;
+}
 
-    return positionToIndex(p,i,j,k) ? (*this)(i,j,k) : NULL;
- }
-
-// Gets the trilinearly interpolated density for the given position
+/**
+ * Gets the trilinearly interpolated density for the given position
+ */
 float VoxelBuffer::getInterpolatedDensity(const P& p) const
 {
     float dx, dy, dz;
@@ -217,9 +231,9 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    dx = Utils::unitRange(x(p), x(p1), x(p2));
-    dy = Utils::unitRange(y(p), y(p1), y(p2));
-    dz = Utils::unitRange(z(p), z(p1), z(p2));
+    dx = unitRange(x(p), x(p1), x(p2));
+    dy = unitRange(y(p), y(p1), y(p2));
+    dz = unitRange(z(p), z(p1), z(p2));
 
     float xLoc = dx * ((float)this->xDim - 1);
     float xWeight = xLoc - floor(xLoc); 
@@ -280,17 +294,21 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
         x2y2z2D = (*this)(x2,y2,z2)->density;
     }
 
-    return Utils::trilerp(xWeight, yWeight, zWeight, x1y1z1D, x1y1z2D, x1y2z1D,
-                          x1y2z2D, x2y1z1D, x2y1z2D, x2y2z1D, x2y2z2D) / 3.0f;
+    return trilerp(xWeight, yWeight, zWeight, x1y1z1D, x1y1z2D, x1y2z1D,
+                   x1y2z2D, x2y1z1D, x2y1z2D, x2y2z1D, x2y2z2D) / 3.0f;
 }
 
-// Convert a 3D index to a linear index
+/**
+ * Convert a 3D index to a linear index
+ */
 int VoxelBuffer::sub2ind(int i, int j, int k) const
 {
     return i + (j * this->xDim) + k * (this->xDim * this->yDim);
 }
 
-// Convert a linear index to a 3D index
+/** 
+ * Convert a linear index to a 3D index
+ */
 void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
 {
     i = w % this->xDim;
@@ -298,15 +316,15 @@ void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
     k = w / (this->yDim * this->xDim); 
 }
 
-// Tests if an index is valid:
+/**
+ * Tests if an index is valid
+ */
 bool VoxelBuffer::valid(int i, int j, int k) const
 {
     return (i >= 0 && i < this->xDim) &&
            (j >= 0 && j < this->yDim) &&
            (k >= 0 && k < this->zDim);
 }
-
-// Output //////////////////////////////////////////////////////////////////////
 
 ostream& operator<<(ostream &s, const VoxelBuffer &vb)
 {
@@ -332,9 +350,9 @@ ostream& operator<<(ostream &s, const VoxelBuffer &vb)
     return s << "}";
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Ray march code
-////////////////////////////////////////////////////////////////////////////////
+/*******************************************************************************
+ * Raymarching implementation using Beer's law for transmittance
+ ******************************************************************************/
 
 float Q(const VoxelBuffer& vb
        ,float kappa
@@ -346,7 +364,7 @@ float Q(const VoxelBuffer& vb
     Voxel *voxel = vb.positionToVoxel(X);
 
     // Done or outside of the volume
-    if (voxel == NULL || iterations <= 0) {
+    if (voxel == nullptr || iterations <= 0) {
         return 1.0f;
     }
 
@@ -371,7 +389,7 @@ RayMarch rayMarch(const RenderContext& ctx
     // Only take the first light for now:
     list<Light*> lights = ctx.getLights();
     Color accumColor = Color(0.0f, 0.0f, 0.0f);
-    Voxel* voxel        = NULL;
+    Voxel* voxel        = nullptr;
 
     P X;
     V N;
@@ -384,7 +402,7 @@ RayMarch rayMarch(const RenderContext& ctx
         }
 
         // If the density function is provided, use it
-        float density = densityFunction == NULL 
+        float density = densityFunction == nullptr 
             ? voxel->density 
             : densityFunction(voxel, X, densityData);
         
@@ -427,3 +445,5 @@ RayMarch rayMarch(const RenderContext& ctx
 
     return RayMarch(accumColor, T);
 }
+
+/******************************************************************************/

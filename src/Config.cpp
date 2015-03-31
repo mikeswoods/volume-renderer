@@ -1,4 +1,5 @@
 #include <cctype>
+#include <cassert>
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
@@ -16,13 +17,14 @@
 #define DEFAULT_FREQ 1.0f
 #define DEFAULT_AMP 1.0f
 
-////////////////////////////////////////////////////////////////////////////////
-// Configuration file format
-////////////////////////////////////////////////////////////////////////////////
+/******************************************************************************/
+ 
+using namespace std;
+using namespace Utils;
 
-// New format
-
-/**
+/*******************************************************************************
+ * ==== New format ====
+ * 
  * STEP 0.005
  * XYZC 100 100 100
  * BRGB 0.27 0.51 0.71
@@ -42,13 +44,8 @@
  * 0.5 0.5 -0.5
  * 0.4
  *
- */
-
-////////////////////////////////////////////////////////////////////////////////
-
-// Old format
-
-/**
+ * ==== Old format ====
+ *
  * STEP 0.005
  * XYZC 100 100 100
  * BRGB 0.27 0.51 0.71
@@ -71,45 +68,43 @@
  * 1.0
  * 0
  * 0
- */
-using namespace std;
+ ******************************************************************************/
 
-Configuration::Configuration()
+Configuration::Configuration() :
+    STEP(0.005),
+    XYZC(ivec3(0, 0, 0)),
+    BRGB(ivec3(0, 0, 0)),
+    MRGB(ivec3(0, 0, 0)),
+    FILE(""),
+    RESO(ivec2(640, 480)),
+    EYEP(ivec3(0, 0, 2)),
+    VDIR(ivec3(0, 0, -1)),
+    UVEC(ivec3(0, 1, 0)),
+    FOVY(45.0f),
+    SEED(static_cast<int>(time(nullptr)))
 {
-    this->STEP = 0.0f;
 
-    this->XYZC[0] = 0;
-    this->XYZC[1] = 0;
-    this->XYZC[2] = 0;
+}
 
-    this->BRGB[0] = 0.0f;
-    this->BRGB[1] = 0.0f;
-    this->BRGB[2] = 0.0f;
+Configuration::Configuration(const Configuration& other) :
+    STEP(other.STEP),
+    XYZC(other.XYZC),
+    BRGB(other.BRGB),
+    MRGB(other.MRGB),
+    FILE(other.FILE),
+    RESO(other.RESO),
+    EYEP(other.EYEP),
+    VDIR(other.VDIR),
+    UVEC(other.UVEC),
+    FOVY(other.FOVY),
+    SEED(static_cast<int>(time(nullptr)))
+{
 
-    this->MRGB[0] = 0.0f;
-    this->MRGB[1] = 0.0f;
-    this->MRGB[2] = 0.0f;
+}
 
-    this->FILE = "";
+Configuration::~Configuration()
+{
 
-    this->RESO[0] = 0;
-    this->RESO[1] = 0;
-
-    this->EYEP[0] = 0.0f;
-    this->EYEP[1] = 0.0f;
-    this->EYEP[2] = 0.0f;
-
-    this->VDIR[0] = 0.0f;
-    this->VDIR[1] = 0.0f;
-    this->VDIR[2] = 0.0f;
-
-    this->UVEC[0] = 0.0f;
-    this->UVEC[1] = 0.0f;
-    this->UVEC[2] = 0.0f;
-
-    this->FOVY = 0.0f;
-
-    this->SEED = (int)time(NULL);
 }
 
 ostream& operator<<(ostream& s, const Configuration& c)
@@ -117,14 +112,14 @@ ostream& operator<<(ostream& s, const Configuration& c)
     return
     s << "Configuration {"  << endl
       << "  STEP      = "   << c.STEP << endl
-      << "  XYZC      = <"  << c.XYZC[0] << "," << c.XYZC[1] << "," << c.XYZC[2] << ">" << endl
-      << "  BRGB      = <"  << c.BRGB[0] << "," << c.BRGB[1] << "," << c.BRGB[2] << ">" << endl
-      << "  MRGB      = <"  << c.MRGB[0] << "," << c.MRGB[1] << "," << c.MRGB[2] << ">" << endl
+      << "  XYZC      = <"  << c.XYZC.x << "," << c.XYZC.y << "," << c.XYZC.z << ">" << endl
+      << "  BRGB      = <"  << c.BRGB.r << "," << c.BRGB.g << "," << c.BRGB.b << ">" << endl
+      << "  MRGB      = <"  << c.MRGB.r << "," << c.MRGB.g << "," << c.MRGB.b << ">" << endl
       << "  FILE      = \"" << c.FILE << "\"" << endl
-      << "  RESO      = <"  << c.RESO[0] << "," << c.RESO[1] << ">" << endl
-      << "  EYEP      = <"  << c.EYEP[0] << "," << c.EYEP[1] << "," << c.EYEP[2] << ">" << endl
-      << "  VDIR      = <"  << c.VDIR[0] << "," << c.VDIR[1] << "," << c.VDIR[2] << ">" << endl
-      << "  UVEC      = <"  << c.UVEC[0] << "," << c.UVEC[1] << "," << c.UVEC[2] << ">" << endl
+      << "  RESO      = <"  << c.RESO.x << "," << c.RESO.y << ">" << endl
+      << "  EYEP      = <"  << c.EYEP.x << "," << c.EYEP.y << "," << c.EYEP.z << ">" << endl
+      << "  VDIR      = <"  << c.VDIR.x << "," << c.VDIR.y << "," << c.VDIR.z << ">" << endl
+      << "  UVEC      = <"  << c.UVEC.x << "," << c.UVEC.y << "," << c.UVEC.z << ">" << endl
       << "  FOVY      = "   << c.FOVY << endl
       << "  SEED      = "   << c.SEED << endl
       << "  |lights|  = "   << c.lights.size() << endl
@@ -132,8 +127,10 @@ ostream& operator<<(ostream& s, const Configuration& c)
       << "}";
 }
 
-// Tests if the given string is non-numeric
-bool Configuration::isNonNumeric(const string& s)
+/**
+ * Tests if the given string is non-numeric
+ */
+bool Configuration::isNonNumeric(const string& s) const
 {
     string::const_iterator it = s.begin();
     
@@ -144,27 +141,29 @@ bool Configuration::isNonNumeric(const string& s)
     return !s.empty() && it == s.end();
 }
 
-// Reads a configuration header attribute from the given stream
+/**
+ * Reads a configuration header attribute from the given stream
+ */
 string Configuration::readAttribute(string optionType, istream& is)
 {
     if (optionType == "STEP") {
         is >> this->STEP;
     } else if (optionType == "XYZC") {
-        is >> this->XYZC[0] >> this->XYZC[1] >> this->XYZC[2];
+        is >> this->XYZC.x >> this->XYZC.y >> this->XYZC.z;
     } else if (optionType == "BRGB") {
-        is >> this->BRGB[0] >> this->BRGB[1] >> this->BRGB[2];
+        is >> this->BRGB.r >> this->BRGB.g >> this->BRGB.b;
     } else if (optionType == "MRGB") {
-        is >> this->MRGB[0] >> this->MRGB[1] >> this->MRGB[2];
+        is >> this->MRGB.r >> this->MRGB.g >> this->MRGB.b;
     } else if (optionType == "FILE") {
         is >> this->FILE;
     } else if (optionType == "RESO") {
-        is >> this->RESO[0] >> this->RESO[1];
+        is >> this->RESO.x >> this->RESO.y;
     } else if (optionType == "EYEP") {
-        is >> this->EYEP[0] >> this->EYEP[1] >> this->EYEP[2];
+        is >> this->EYEP.x >> this->EYEP.y >> this->EYEP.z;
     } else if (optionType == "VDIR") {
-        is >> this->VDIR[0] >> this->VDIR[1] >> this->VDIR[2];
+        is >> this->VDIR.x >> this->VDIR.y >> this->VDIR.z;
     } else if (optionType == "UVEC") {
-        is >> this->UVEC[0] >> this->UVEC[1] >> this->UVEC[2];
+        is >> this->UVEC.x >> this->UVEC.y >> this->UVEC.z;
     } else if (optionType == "FOVY") {
         is >> this->FOVY;
     } else if (optionType == "SEED") {
@@ -184,31 +183,10 @@ string Configuration::readAttribute(string optionType, istream& is)
     return optionType;
 }
 
-// Reads a configuration density value for a single object
-float Configuration::readSingleDensity(int count, string line)
-{
-    istringstream is(line);
-    float value = 0.0;
-    is >> value;
-
-    if (!is.good() && !is.eof()) {
-        ostringstream msg;
-        msg << "(" << count << ") Bad parse for line: '" << line << "'";
-        throw runtime_error(msg.str());
-    }
-
-    return value;
-}
-
-// Reads a configuration density value for a single object
-void Configuration::readObjectDescription(istream& is)
-{
-    float value = 0.0;
-    is >> value;
-}
-
-// Reads a configuration header from the given stream, updating the 
-// corresponding member values of this instance
+/**
+ * Reads a configuration header from the given stream, updating the 
+ * corresponding member values of this instance
+ */
 void Configuration::readHeader(istream& is)
 {
     string line, optionType;
@@ -218,7 +196,7 @@ void Configuration::readHeader(istream& is)
 
     while (getline(is, line)) {
 
-        line = Utils::trim(line);
+        line = trim(line);
 
         // Newline means the header is over
         if (line.length() == 0) {
@@ -242,38 +220,69 @@ void Configuration::readHeader(istream& is)
     is.seekg(-rewindChars, ios_base::cur);
 }
 
-// Read the old version of body
-void Configuration::readOldFormatBody(istream& is)
+/**
+ * Instantiates lights based on read configuration values
+ */
+void Configuration::addLighting()
 {
-    int count = 0;
-    int index = 0;
-    string line;
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Old
-    ////////////////////////////////////////////////////////////////////////////
-
-    Color *material = new Color(this->MRGB[0] ,this->MRGB[1] ,this->MRGB[2]);
-
-    VoxelBuffer *vb = new VoxelBuffer(this->XYZC[0]
-                                     ,this->XYZC[1]
-                                     ,this->XYZC[2]
-                                     ,BoundingBox(P(0,0,0),P(1,1,-1))
-                                     ,material);
-
-    while (getline(is, line)) {
-
-        line = Utils::trim(line);
-
-        // Multiply the density value by the voxel space width:
-        vb->set(index++, Voxel(readSingleDensity(count++, line) * this->XYZC[0]));
+    if (this->LPOS.size() > 0 &&
+        this->LCOL.size() > 0 &&
+        this->LPOS.size() != this->LCOL.size()) 
+    {
+        cerr << "***BAD*** "
+             << "this->LPOS.size() = " << this->LPOS.size() << " ; "
+             << "this->LCOL.size() = " << this->LCOL.size()
+             << endl;
+        throw length_error("POS.size() != LCOL.size()");
     }
 
-    this->objects.push_back(vb);
+    if (this->LPOS.size() > MAX_LIGHTS) {
+        throw length_error("#lights > MAX_LIGHTS");
+    }
+
+    auto ip = this->LPOS.begin();
+    auto ic = this->LCOL.begin();
+
+    for (ip = this->LPOS.begin(), ic = this->LCOL.begin()
+        ;ip != this->LPOS.end() && ic != this->LCOL.end()
+        ;ip++, ic++) 
+    {
+        Light *light = new Light(P(ip->x, ip->y, ip->z)
+                                ,Color(ic->r,ic->g,ic->b)); 
+        lights.push_back(light);
+    }
 }
 
-// Reads a line that specifies an objects type: "sphere", "proclastic", etc.
-void Configuration::readObjectType(const string& line, string& objectType)
+/** 
+ * Reads a configuration from the given stream, updating the 
+ * corresponding member values of this instance
+ */
+void Configuration::read(istream& is, bool skipHeader)
+{
+    if (skipHeader) {
+        clog << "Skipping header..." << endl;
+    } else {
+        this->readHeader(is);
+    }
+
+    this->readBody(is, skipHeader);
+
+    // Let there be light(s):
+    this->addLighting();
+}
+
+/******************************************************************************/
+
+NewConfigurationReader::NewConfigurationReader() :
+    Configuration()
+{
+
+}
+
+/**
+ * Reads a line that specifies an objects type: "sphere", "proclastic", etc.
+ */
+void NewConfigurationReader::readObjectType(const string& line, string& objectType)
 {
     istringstream is(line);
 
@@ -285,8 +294,10 @@ void Configuration::readObjectType(const string& line, string& objectType)
     }
 }
 
-// Reads a line that contains an objects <xCenter> <yCenter> <zCenter> values
-void Configuration::readCenter(const string& line, float& xCenter, float& yCenter, float& zCenter)
+/** 
+ * Reads a line that contains an objects <xCenter> <yCenter> <zCenter> values
+ */
+void NewConfigurationReader::readCenter(const string& line, float& xCenter, float& yCenter, float& zCenter)
 {
     istringstream is(line);
 
@@ -298,8 +309,10 @@ void Configuration::readCenter(const string& line, float& xCenter, float& yCente
     }
 }
 
-// Reads a line that contains an objects <radius> value
-void Configuration::readRadius(const string& line, float& radius)
+/** 
+ * Reads a line that contains an objects <radius> value
+ */
+void NewConfigurationReader::readRadius(const string& line, float& radius)
 {
     istringstream is(line);
 
@@ -310,13 +323,15 @@ void Configuration::readRadius(const string& line, float& radius)
     }
 }
 
-// Reads the remaining additional attributes, if any
-void Configuration::readAdditional(const string& line
-                                  ,float& scale
-                                  ,int& octaves
-                                  ,float& freq
-                                  ,float& amp
-                                  ,string& textureFile)
+/**
+ * Reads the remaining additional attributes, if any
+ */
+void NewConfigurationReader::readAdditional(const string& line
+                                           ,float& scale
+                                           ,int& octaves
+                                           ,float& freq
+                                           ,float& amp
+                                           ,string& textureFile)
 {
     istringstream is(line);
 
@@ -346,8 +361,10 @@ void Configuration::readAdditional(const string& line
     }
 }
 
-// Read the new version of body
-void Configuration::readNewFormatBody(istream& is)
+/**
+ * Read the new version of body
+ */
+void NewConfigurationReader::readBody(istream& is, bool skippedHeader)
 {
     string line;
     int objectCount = 0;
@@ -360,10 +377,12 @@ void Configuration::readNewFormatBody(istream& is)
 
     // Expect a blank line:
     getline(is, line);
-    line = Utils::trim(line);
+
+    line = trim(line);
     if (line.length() > 0) {
         throw runtime_error("Expected one or more blank line after object count");
     }
+
     getline(is, line);
 
     // Now using object count, read each object definition:
@@ -374,7 +393,7 @@ void Configuration::readNewFormatBody(istream& is)
         // Sane default values for center, radius, and scale
         float xCenter = 0.0f, yCenter = 0.0f, zCenter = 0.0f;
         float radius  = 0.0f;
-        float scale   = this->XYZC[0];
+        float scale   = this->XYZC.x;
         int octaves   = 1;
         float freq    = 1.0f;
         float amp     = 1.0f;
@@ -389,7 +408,7 @@ void Configuration::readNewFormatBody(istream& is)
         for (int j=0; j<4; j++) {
 
             getline(is, line);
-            line = Utils::trim(line);
+            line = trim(line);
             clog << "read["<<line.length()<<"]("<<i<<","<<j<<"): "<<line<<endl;
 
             switch (j) {
@@ -417,13 +436,13 @@ void Configuration::readNewFormatBody(istream& is)
             }
         }
 
-        StdObject* obj     = NULL;
-        Material *material = NULL; 
+        StdObject* obj     = nullptr;
+        Material *material = nullptr; 
 
         if (textureFile != "") {
             material = new BitmapTexture(textureFile);
         } else {
-            material = new Color(this->MRGB[0] ,this->MRGB[1] ,this->MRGB[2]);
+            material = new Color(this->MRGB.r, this->MRGB.g, this->MRGB.b);
         }
 
         // Define the bounds of the object as a function of the radius and 
@@ -435,9 +454,9 @@ void Configuration::readNewFormatBody(istream& is)
 
             obj = new VoxelSphere(radius
                                  ,scale
-                                 ,this->XYZC[0]
-                                 ,this->XYZC[1]
-                                 ,this->XYZC[2]
+                                 ,this->XYZC.x
+                                 ,this->XYZC.y
+                                 ,this->XYZC.z
                                  ,bounds
                                  ,material);
 
@@ -445,9 +464,9 @@ void Configuration::readNewFormatBody(istream& is)
 
             obj = new VoxelCloud(radius
                                 ,scale
-                                ,this->XYZC[0]
-                                ,this->XYZC[1]
-                                ,this->XYZC[2]
+                                ,this->XYZC.x
+                                ,this->XYZC.y
+                                ,this->XYZC.z
                                 ,bounds
                                 ,material
                                 ,this->SEED
@@ -459,9 +478,9 @@ void Configuration::readNewFormatBody(istream& is)
 
             obj = new VoxelPyroclastic(radius
                                       ,scale
-                                      ,this->XYZC[0]
-                                      ,this->XYZC[1]
-                                      ,this->XYZC[2]
+                                      ,this->XYZC.x
+                                      ,this->XYZC.y
+                                      ,this->XYZC.z
                                       ,bounds
                                       ,material
                                       ,this->SEED
@@ -474,46 +493,64 @@ void Configuration::readNewFormatBody(istream& is)
     }
 }
 
-// Reads a configuration header from the given stream, updating the 
-// corresponding member values of this instance
-void Configuration::readBody(istream& is)
-{  
-    //this->readOldFormatBody(is);
-    this->readNewFormatBody(is);
-}
+/******************************************************************************/
 
-// Reads a configuration from the given stream, updating the 
-// corresponding member values of this instance
-void Configuration::read(istream& is)
+OldConfigurationReader::OldConfigurationReader() :
+    Configuration()
 {
-    this->readHeader(is);
 
-    this->readBody(is);
-
-    // Let there be light(s):
-
-    if (this->LPOS.size() != this->LCOL.size()) {
-        cerr << "***BAD*** "
-             << "this->LPOS.size() = " << this->LPOS.size() << " ; "
-             << "this->LCOL.size() = " << this->LCOL.size()
-             << endl;
-        throw length_error("POS.size() != LCOL.size()");
-    }
-
-    if (this->LPOS.size() > MAX_LIGHTS) {
-        throw length_error("#lights > MAX_LIGHTS");
-    }
-
-    list<PositionDecl>::const_iterator ip = this->LPOS.begin();
-    list<ColorDecl>::const_iterator ic    = this->LCOL.begin();
-
-    for (ip = this->LPOS.begin(), ic = this->LCOL.begin()
-        ;ip != this->LPOS.end() && ic != this->LCOL.end()
-        ;ip++, ic++) 
-    {
-        Light *light = new Light(P(ip->x, ip->y, ip->z)
-                                ,Color(ic->r,ic->g,ic->b)); 
-        lights.push_back(light);
-    }
 }
 
+/**
+ * Reads a configuration density value for a single object
+ */
+float OldConfigurationReader::readSingleDensity(int count, string line)
+{
+    istringstream is(line);
+    float value = 0.0;
+    is >> value;
+
+    if (!is.good() && !is.eof()) {
+        ostringstream msg;
+        msg << "(" << count << ") Bad parse for line: '" << line << "'";
+        throw runtime_error(msg.str());
+    }
+
+    return value;
+}
+
+/**
+ * Read the old version of body
+ */
+void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
+{
+    int count = 0;
+    int index = 0;
+    string line;
+
+    Color *material = new Color(this->MRGB.r ,this->MRGB.g ,this->MRGB.b);
+
+    if (skippedHeader) {
+        
+    } else {
+        assert(this->XYZC.x > 0 && this->XYZC.y > 0 && this->XYZC.z > 0);
+    }
+
+    BoundingBox bounds(P(0,0,0), P(1,1,-1));
+
+    auto vb = new VoxelBuffer(this->XYZC.x, this->XYZC.y, this->XYZC.z, bounds, material);
+
+    // Assume each line contains a floating point density value:
+    while (getline(is, line)) {
+
+        line = trim(line);
+
+        // Multiply the density value by the voxel space width:
+
+        vb->set(index++, Voxel(readSingleDensity(count++, line) * this->XYZC.x));
+    }
+
+    this->objects.push_back(vb);
+}
+
+/******************************************************************************/

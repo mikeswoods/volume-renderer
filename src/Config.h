@@ -14,8 +14,8 @@ using namespace glm;
 
 /******************************************************************************/
 
-typedef struct PositionDecl {
-
+typedef struct PositionDecl 
+{
     float x,y,z;
 
     PositionDecl() : x(0.0f), y(0.0f), z(0.0f) { };
@@ -23,8 +23,8 @@ typedef struct PositionDecl {
 
 } PositionDecl;
 
-typedef struct ColorDecl {
-    
+typedef struct ColorDecl 
+{
     float r,g,b;
 
     ColorDecl() : r(0.0f), g(0.0f), b(0.0f) { };
@@ -33,35 +33,27 @@ typedef struct ColorDecl {
 } ColorDecl;
 
 /*******************************************************************************
- * Configuration file format
+ * Base configuration file format
  ******************************************************************************/
 
 class Configuration
 {
-    private:
-        bool isNonNumeric(const string& s);
-        void readOldFormatBody(istream& s);
-        void readNewFormatBody(istream& s);
-
-        void readObjectType(const string& line, string& objectType);
-        void readCenter(const string& line, float& xCenter, float& yCenter, float& zCenter);
-        void readRadius(const string& line, float& radius);
-        void readAdditional(const string& line
-                           ,float& scale
-                           ,int& octaves
-                           ,float& freq
-                           ,float& amp
-                           ,string& textureFile);
-
     protected:
-        string readAttribute(string optionType, istream& is);
-        float readSingleDensity(int count, string line);
-        void readObjectDescription(istream& is);
-        void readHeader(istream& s);
-        void readBody(istream& s);
-
+        /**
+         * All objects defined
+         */
         list<StdObject*> objects;
+
+        /**
+         * All light instances encountered
+         */
         list<Light*> lights;
+
+        bool isNonNumeric(const string& s) const;
+        virtual string readAttribute(string optionType, istream& is);
+        virtual void readHeader(istream& s);
+        virtual void readBody(istream& s, bool skippedHeader) = 0;
+        virtual void addLighting();
 
     public:
         /**
@@ -133,13 +125,49 @@ class Configuration
         int SEED;
 
         Configuration();
+        Configuration(const Configuration& other);
+        virtual ~Configuration();
 
-        void read(istream& s);
+        virtual void read(istream& s, bool skipHeader = false);
 
         const list<StdObject*>& getObjects() const { return this->objects; };
         const list<Light*>& getLights() const      { return this->lights; };
 
         friend ostream& operator<<(ostream& s, const Configuration& c);
 };
+
+/******************************************************************************/
+
+class NewConfigurationReader : public Configuration
+{
+    protected:
+        void readObjectType(const string& line, string& objectType);
+        void readCenter(const string& line, float& xCenter, float& yCenter, float& zCenter);
+        void readRadius(const string& line, float& radius);
+        void readAdditional(const string& line
+                           ,float& scale
+                           ,int& octaves
+                           ,float& freq
+                           ,float& amp
+                           ,string& textureFile);
+        virtual void readBody(istream& s, bool skippedHeader);
+
+    public:
+        NewConfigurationReader();
+};
+
+/******************************************************************************/
+
+class OldConfigurationReader : public Configuration
+{
+    protected:
+        float readSingleDensity(int count, string line);
+        virtual void readBody(istream& s, bool skippedHeader);
+
+    public:
+        OldConfigurationReader();
+};
+
+/******************************************************************************/
 
 #endif

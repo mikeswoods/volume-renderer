@@ -20,7 +20,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 # Added my own flags: warnings all the way:
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-c++11-extensions")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-c++11-extensions -std=c++11")
 
 #Compiler flag magic:
 if (UNIX AND NOT APPLE)
@@ -33,7 +33,7 @@ endif ()
 
 # Linker flags:
 if (UNIX AND NOT APPLE)
-   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lX11")
+   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lX11 -lpthread")
 elseif (APPLE)
    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/X11/lib -lX11")
 endif()
