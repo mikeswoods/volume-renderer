@@ -16,7 +16,7 @@ VoxelPyroclastic::VoxelPyroclastic(float radius
                                   ,int octaves
                                   ,float freq
                                   ,float amp) :
-    VoxelBuffer(xDim, yDim, zDim, bounds, material)
+    VoxelBuffer(glm::ivec3(xDim, yDim, zDim), bounds, material)
 {
     this->radius = radius;
     this->scale  = scale;
@@ -26,11 +26,11 @@ VoxelPyroclastic::VoxelPyroclastic(float radius
     P cloudCenter = bounds.center();
     Perlin noise(octaves, freq, amp, seed);
 
-    for (int k=0; k<this->zDim; k++) {
+    for (int k=0; k<this->dim.z; k++) {
 
-        for (int j=0; j<this->yDim; j++) {
+        for (int j=0; j<this->dim.y; j++) {
 
-            for (int i=0; i<this->xDim; i++) {
+            for (int i=0; i<this->dim.x; i++) {
 
                 P voxelCenter;
                 this->center(i, j, k, voxelCenter);
@@ -40,7 +40,7 @@ VoxelPyroclastic::VoxelPyroclastic(float radius
                 float factor  = glm::length(cloudCenter - voxelCenter) / this->radius;
                 float density = std::max(0.0f, this->radius - factor + std::fabs(fbm)) * this->scale;
 
-                this->set(i, j, k, Voxel(density));
+                (*this)(i, j, k) = Voxel(density);
             }
         }
     }

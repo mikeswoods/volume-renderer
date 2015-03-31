@@ -1,11 +1,10 @@
-#define _USE_MATH_DEFINES
 #include <cassert>
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <limits>
 #include <list>
-#include <glm/glm.hpp>
 #include "Ray.h"
 #include "Context.h"
 #include "Color.h"
@@ -22,6 +21,7 @@ class BoundingBox;
 
 using namespace std;
 using namespace Utils;
+using namespace glm;
 
 /******************************************************************************/
 
@@ -32,52 +32,93 @@ ostream& operator<<(ostream &s, const Voxel &v)
 
 /******************************************************************************/
 
-VoxelBuffer::VoxelBuffer(int xDim
-                        ,int yDim
-                        ,int zDim
-                        ,const BoundingBox& bounds
-                        ,Material* material) : 
-    StdObject(bounds, material)
-{
-    this->xDim   = xDim;
-    this->yDim   = yDim;
-    this->zDim   = zDim;
-    this->material = material;
-    this->buffer = new Voxel[this->xDim * this->yDim * this->zDim];
+Voxel::Voxel(float _density) :
+    density(_density)
+{ 
+    fill(this->light, this->light + MAX_LIGHTS, -1.0f);
+}
 
-    this->vWidth  = (float)this->bounds.width() / this->xDim;
-    this->vHeight = (float)this->bounds.height() / this->yDim;
-    this->vDepth  = (float)this->bounds.depth() / this->zDim;
+Voxel::Voxel(const Voxel& other) :
+    density(other.density)
+{
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        this->light[i] = other.light[i];
+    }
+}
+
+Voxel& Voxel::operator=(const Voxel& other)
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    this->density = other.density;
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        this->light[i] = other.light[i];
+    }
+
+    return *this;
+}
+
+/******************************************************************************/
+
+VoxelBuffer::VoxelBuffer(ivec3 _dim
+                        ,const BoundingBox& _bounds
+                        ,Material* _material) :
+    StdObject(_bounds, _material),
+    dim(_dim),
+    material(_material)
+{
+    assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
+
+    this->buffer = make_shared<vector<Voxel> >();
+    this->buffer->resize(_dim.x * _dim.y * _dim.z);
+
+    this->vWidth  = (float)this->bounds.width() / this->dim.x;
+    this->vHeight = (float)this->bounds.height() / this->dim.y;
+    this->vDepth  = (float)this->bounds.depth() / this->dim.z;
+}
+
+VoxelBuffer::VoxelBuffer(ivec3 _dim
+                        ,std::shared_ptr<std::vector<Voxel> > _voxels
+                        ,const BoundingBox& _bounds
+                        ,Material* _material) :
+    StdObject(_bounds, _material),
+    dim(_dim),
+    material(_material)
+{
+    assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
+    int n = _dim.x * _dim.y * _dim.z;
+    assert(_voxels && n == _voxels->size());
 }
 
 VoxelBuffer::~VoxelBuffer()
 {
-    delete this->buffer;
-    this->buffer = nullptr;
+
 }
 
 /*******************************************************************************
  * Indexing and assignment operations
  ******************************************************************************/
 
-Voxel* VoxelBuffer::operator() (int i, int j, int k) const 
+Voxel VoxelBuffer::operator()(int i, int j, int k) const 
 {
-    return &this->buffer[sub2ind(i,j,k)];
+    return (*this->buffer)[sub2ind(i, j, k)];
 }
 
-Voxel* VoxelBuffer::operator[](int i) const
+Voxel& VoxelBuffer::operator()(int i, int j, int k)
 {
-    return &this->buffer[i];
+    return (*this->buffer)[sub2ind(i, j, k)];
 }
 
-void VoxelBuffer::set(int i, const Voxel& v)
+Voxel VoxelBuffer::operator[](int i) const
 {
-    this->buffer[i] = v;
+    return (*this->buffer)[i];
 }
 
-void VoxelBuffer::set(int i, int j, int k, const Voxel& v)
+Voxel& VoxelBuffer::operator()(int i)
 {
-    this->buffer[sub2ind(i,j,k)] = v;
+    return (*this->buffer)[i];
 }
 
 Material* VoxelBuffer::getMaterial() const
@@ -121,9 +162,9 @@ bool VoxelBuffer::center(const P& p, P& center) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->xDim);
-    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->yDim);
-    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->zDim);
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
@@ -148,9 +189,9 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
     P p1 = this->bounds.getP1();
     P p2 = this->bounds.getP2();
 
-    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->xDim);
-    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->yDim);
-    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->zDim);
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
@@ -192,9 +233,9 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
         dz = 0.0f;
     }
 
-    float xLoc  = dx * (((float)this->xDim) - this->getVoxelWidth());
-    float yLoc  = dy * (((float)this->yDim) - this->getVoxelHeight());
-    float zLoc  = dz * (((float)this->zDim) - this->getVoxelDepth());
+    float xLoc  = dx * (((float)this->dim.x) - this->getVoxelWidth());
+    float yLoc  = dy * (((float)this->dim.y) - this->getVoxelHeight());
+    float zLoc  = dz * (((float)this->dim.z) - this->getVoxelDepth());
     xCell = (int)floor(xLoc);
     yCell = (int)floor(yLoc);
     zCell = (int)floor(zLoc);
@@ -212,15 +253,6 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
 }
 
 /**
- * Converts a postion to a Voxel instance
- */
-Voxel* VoxelBuffer::positionToVoxel(const P& p) const
-{
-    int i,j,k;
-    return positionToIndex(p,i,j,k) ? (*this)(i,j,k) : nullptr;
-}
-
-/**
  * Gets the trilinearly interpolated density for the given position
  */
 float VoxelBuffer::getInterpolatedDensity(const P& p) const
@@ -235,17 +267,17 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
     dy = unitRange(y(p), y(p1), y(p2));
     dz = unitRange(z(p), z(p1), z(p2));
 
-    float xLoc = dx * ((float)this->xDim - 1);
+    float xLoc = dx * ((float)this->dim.x - 1);
     float xWeight = xLoc - floor(xLoc); 
     x1 = (int)floor(xLoc);
     x2 = (int)ceil(xLoc);
 
-    float yLoc = dy * ((float)this->yDim - 1);
+    float yLoc = dy * ((float)this->dim.y - 1);
     float yWeight = yLoc - floor(yLoc); 
     y1 = (int)floor(yLoc);
     y2 = (int)ceil(yLoc);    
 
-    float zLoc = dz * ((float)this->zDim - 1);
+    float zLoc = dz * ((float)this->dim.z - 1);
     float zWeight = zLoc - floor(zLoc); 
     z1 = (int)floor(zLoc);
     z2 = (int)ceil(zLoc);
@@ -270,28 +302,28 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
     float x2y2z2D = 0.0f;
 
     if (this->valid(x1,y1,z1)) {
-        x1y1z1D = (*this)(x1,y1,z1)->density;
+        x1y1z1D = (*this)(x1,y1,z1).density;
     }
     if (this->valid(x1,y1,z2)) {
-        x1y1z2D = (*this)(x1,y1,z2)->density;
+        x1y1z2D = (*this)(x1,y1,z2).density;
     }
     if (this->valid(x1,y2,z1)) {
-        x1y2z1D = (*this)(x1,y2,z1)->density;
+        x1y2z1D = (*this)(x1,y2,z1).density;
     }
     if (this->valid(x1,y2,z2)) {
-        x1y2z2D = (*this)(x1,y2,z2)->density;
+        x1y2z2D = (*this)(x1,y2,z2).density;
     }
     if (this->valid(x2,y1,z1)) {
-        x2y1z1D = (*this)(x2,y1,z1)->density;
+        x2y1z1D = (*this)(x2,y1,z1).density;
     }
     if (this->valid(x2,y1,z2)) {
-        x2y1z2D = (*this)(x2,y1,z2)->density;
+        x2y1z2D = (*this)(x2,y1,z2).density;
     }
     if (this->valid(x2,y2,z1)) {
-        x2y2z1D = (*this)(x2,y2,z1)->density;
+        x2y2z1D = (*this)(x2,y2,z1).density;
     }
     if (this->valid(x2,y2,z2)) {
-        x2y2z2D = (*this)(x2,y2,z2)->density;
+        x2y2z2D = (*this)(x2,y2,z2).density;
     }
 
     return trilerp(xWeight, yWeight, zWeight, x1y1z1D, x1y1z2D, x1y2z1D,
@@ -303,7 +335,7 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
  */
 int VoxelBuffer::sub2ind(int i, int j, int k) const
 {
-    return i + (j * this->xDim) + k * (this->xDim * this->yDim);
+    return i + (j * this->dim.x) + k * (this->dim.x * this->dim.y);
 }
 
 /** 
@@ -311,9 +343,9 @@ int VoxelBuffer::sub2ind(int i, int j, int k) const
  */
 void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
 {
-    i = w % this->xDim;
-    j = (w / this->xDim) % this->yDim;
-    k = w / (this->yDim * this->xDim); 
+    i = w % this->dim.x;
+    j = (w / this->dim.x) % this->dim.y;
+    k = w / (this->dim.y * this->dim.x); 
 }
 
 /**
@@ -321,28 +353,28 @@ void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
  */
 bool VoxelBuffer::valid(int i, int j, int k) const
 {
-    return (i >= 0 && i < this->xDim) &&
-           (j >= 0 && j < this->yDim) &&
-           (k >= 0 && k < this->zDim);
+    return (i >= 0 && i < this->dim.x) &&
+           (j >= 0 && j < this->dim.y) &&
+           (k >= 0 && k < this->dim.z);
 }
 
 ostream& operator<<(ostream &s, const VoxelBuffer &vb)
 {
-    s << "VoxelBuffer[" << vb.xDim << "]"   <<
-                    "[" << vb.yDim << "]"   <<
-                    "[" << vb.zDim << "] {" << endl;
+    s << "VoxelBuffer[" << vb.dim.x << "]"   <<
+                    "[" << vb.dim.y << "]"   <<
+                    "[" << vb.dim.z << "] {" << endl;
     int q = 0, w = 0;
 
-    for (int k=0; k<vb.zDim; k++) {
-        for (int j=0; j<vb.yDim; j++) {
-            for (int i=0; i<vb.xDim; i++) {
+    for (int k=0; k<vb.dim.z; k++) {
+        for (int j=0; j<vb.dim.y; j++) {
+            for (int i=0; i<vb.dim.x; i++) {
 
                 int ii,jj,kk;
                 w = vb.sub2ind(i,j,k);
                 vb.ind2sub(w, ii, jj, kk);
                 s << q++ << "\t[(" << i << "," << j << "," << k << ")" 
                          <<  " => (" << ii << "," << jj << "," << kk <<")"
-                         << " => " << vb.buffer[w] 
+                         << " => " << (*vb.buffer)[w] 
                   << endl;
             }
         }
@@ -361,14 +393,16 @@ float Q(const VoxelBuffer& vb
        ,const P& X
        ,const V& N)
 {
-    Voxel *voxel = vb.positionToVoxel(X);
+    int i = -1;
+    int j = -1;
+    int k = -1;
 
     // Done or outside of the volume
-    if (voxel == nullptr || iterations <= 0) {
+    if (!vb.positionToIndex(X, i, j, k) || iterations <= 0) {
         return 1.0f;
     }
 
-    return exp(-kappa * step * voxel->density) * 
+    return exp(-kappa * step * vb(i, j, k).density) * 
            Q(vb, kappa, step, iterations - 1, X + N, N);
 }
 
@@ -376,7 +410,7 @@ RayMarch rayMarch(const RenderContext& ctx
                  ,const VoxelBuffer& vb
                  ,const P& start
                  ,const P& end
-                 ,float (*densityFunction)(Voxel* voxel, const P& X, void* densityData)
+                 ,float (*densityFunction)(const Voxel& voxel, const P& X, void* densityData)
                  ,void* densityData)
 {
     float step         = ctx.getStep();
@@ -388,8 +422,7 @@ RayMarch rayMarch(const RenderContext& ctx
 
     // Only take the first light for now:
     list<Light*> lights = ctx.getLights();
-    Color accumColor = Color(0.0f, 0.0f, 0.0f);
-    Voxel* voxel        = nullptr;
+    Color accumColor    = Color(0.0f, 0.0f, 0.0f);
 
     P X;
     V N;
@@ -397,13 +430,19 @@ RayMarch rayMarch(const RenderContext& ctx
 
     for (int i=0; i<iterations; i++, X += N) {
 
-        if (!(voxel = vb.positionToVoxel(X))) {
+        int vi = -1;
+        int vj = -1;
+        int vk = -1;
+
+        if (!vb.positionToIndex(X, vi, vj, vk)) {
             break;
         }
 
+        auto voxel = vb(vi, vj, vk);
+
         // If the density function is provided, use it
         float density = densityFunction == nullptr 
-            ? voxel->density 
+            ? voxel.density 
             : densityFunction(voxel, X, densityData);
         
         if (interpolate) {
@@ -423,7 +462,7 @@ RayMarch rayMarch(const RenderContext& ctx
         float offset = (2.0f * step) + FLT_EPSILON;
 
         // For every light in the scene:
-        list<Light*>::const_iterator li=lights.begin();
+        auto li = lights.begin();
 
         for (int k=0; li != lights.end(); li++, k++) {
 
@@ -431,15 +470,15 @@ RayMarch rayMarch(const RenderContext& ctx
 
             int stepsToLight = traverse(step, offset, center, light->getPosition(), LX, LN);
 
-            if (voxel->light[k] < 0.0f) {
-                voxel->light[k] = Q(vb, kappa, step, stepsToLight, LX, LN);
+            if (voxel.light[k] < 0.0f) {
+                voxel.light[k] = Q(vb, kappa, step, stepsToLight, LX, LN);
             }
 
             accumColor += light->getColor() * 
                           material->colorAt(X, vb.getBoundingBox().center()) * 
                           attenuation * 
                           T * 
-                          voxel->light[k];
+                          voxel.light[k];
         }
     }
 

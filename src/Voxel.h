@@ -3,12 +3,14 @@
 
 #include <algorithm>
 #include <iostream>
-#include <list>
+#include <vector>
+#include <memory>
+#include <glm/glm.hpp>
 #include "Context.h"
 #include "Color.h"
 #include "StdObject.h"
 
-using namespace std;
+/******************************************************************************/
 
 #define MAX_LIGHTS 5
 
@@ -16,18 +18,20 @@ using namespace std;
  * Individual voxel
  ******************************************************************************/
 
-typedef struct Voxel
+class Voxel
 {
-    float light[MAX_LIGHTS];
-    float density;
+    public:
+        float light[MAX_LIGHTS];
+        float density;
 
-    Voxel(float density = 0.0f)
-    { 
-        this->density = density;
-        fill(this->light, this->light + MAX_LIGHTS, -1.0f);
-    };
+    public:
+        Voxel(float density = 0.0f);
+        Voxel(const Voxel& other);
+        Voxel& operator=(const Voxel& other);
 
-} Voxel;
+        friend std::ostream& operator<<(std::ostream &s, const Voxel &v);
+};
+
 
 /*******************************************************************************
  * Voxel buffer
@@ -41,18 +45,17 @@ class VoxelBuffer : public StdObject
         bool valid(int i, int j, int k) const;
 
     protected:
-        int xDim, yDim, zDim;
+        glm::ivec3 dim;
         float vWidth, vHeight, vDepth;
-        Voxel* buffer;
+        std::shared_ptr<std::vector<Voxel> > buffer;
         Material* material;
 
     public:
-        VoxelBuffer(int x, int y, int z, const BoundingBox& bounds, Material* material);
+        VoxelBuffer(glm::ivec3 dim, const BoundingBox& bounds, Material* material);
+        VoxelBuffer(glm::ivec3 dim, std::shared_ptr<std::vector<Voxel> > voxels, const BoundingBox& bounds, Material* material);
         ~VoxelBuffer();
 
-        int getX() const { return this->xDim; }
-        int getY() const { return this->yDim; }
-        int getZ() const { return this->zDim; }
+        const glm::ivec3& getDimensions() const { return this->dim; }
 
         virtual Material* getMaterial() const;
 
@@ -63,16 +66,14 @@ class VoxelBuffer : public StdObject
         bool center(const P& p, P& center) const;
         bool center(int i, int j, int k, P& center) const;
         bool positionToIndex(const P& p, int& i, int& j, int& k) const;
-        Voxel* positionToVoxel(const P& p) const;
         float getInterpolatedDensity(const P& p) const;
 
         // Indexing and assignment operations
 
-        Voxel* operator() (int i, int j, int k) const;
-        Voxel* operator[](int i) const;
-
-        void set(int i, const Voxel& v);
-        void set(int i, int j, int k, const Voxel& v);
+        Voxel operator() (int i, int j, int k) const;
+        Voxel& operator() (int i, int j, int k);
+        Voxel operator[](int i) const;
+        Voxel& operator()(int i);
 
         // Intersection
 
@@ -111,7 +112,7 @@ RayMarch rayMarch(const RenderContext& ctx
                  ,const VoxelBuffer& vb
                  ,const P& startPosition
                  ,const P& endPosition
-                 ,float (*densityFunction)(Voxel* voxel, const P& X, void* densityData) = NULL
+                 ,float (*densityFunction)(const Voxel& voxel, const P& X, void* densityData) = NULL
                  ,void* densityData = NULL);
 
 #endif

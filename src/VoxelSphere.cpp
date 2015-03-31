@@ -8,18 +8,18 @@ VoxelSphere::VoxelSphere(float radius
                         ,int zDim
                         ,const BoundingBox& bounds
                         ,Material* material) :
-VoxelBuffer(xDim, yDim, zDim, bounds, material)
+VoxelBuffer(glm::ivec3(xDim, yDim, zDim), bounds, material)
 { 
     this->radius = radius;
     this->scale  = scale;
 
     P sphereCenter = bounds.center();
 
-    for (int k=0; k<this->zDim; k++) {
+    for (int k=0; k<this->dim.z; k++) {
 
-        for (int j=0; j<this->yDim; j++) {
+        for (int j=0; j<this->dim.y; j++) {
 
-            for (int i=0; i<this->xDim; i++) {
+            for (int i=0; i<this->dim.x; i++) {
 
                 // For each (i,j,k) voxel, find its distance from the center
 
@@ -34,7 +34,7 @@ VoxelBuffer(xDim, yDim, zDim, bounds, material)
                     //density = ((this->radius - d) / this->radius) * this->scale; 
                 }
 
-                this->set(i, j, k, Voxel(density));
+                (*this)(i, j, k) = Voxel(density);
             }
         }
     }

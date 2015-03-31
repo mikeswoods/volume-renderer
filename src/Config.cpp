@@ -538,7 +538,7 @@ void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
 
     BoundingBox bounds(P(0,0,0), P(1,1,-1));
 
-    auto vb = new VoxelBuffer(this->XYZC.x, this->XYZC.y, this->XYZC.z, bounds, material);
+    auto vb = new VoxelBuffer(this->XYZC, bounds, material);
 
     // Assume each line contains a floating point density value:
     while (getline(is, line)) {
@@ -547,7 +547,7 @@ void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
 
         // Multiply the density value by the voxel space width:
 
-        vb->set(index++, Voxel(readSingleDensity(count++, line) * this->XYZC.x));
+        (*vb)(index++) = Voxel(readSingleDensity(count++, line) * this->XYZC.x);
     }
 
     this->objects.push_back(vb);
