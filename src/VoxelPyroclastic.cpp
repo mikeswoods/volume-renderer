@@ -26,11 +26,11 @@ VoxelPyroclastic::VoxelPyroclastic(float radius
     P cloudCenter = bounds.center();
     Perlin noise(octaves, freq, amp, seed);
 
-    for (int k=0; k<this->dim.z; k++) {
+    for (int k=0; k<this->gridDim.z; k++) {
 
-        for (int j=0; j<this->dim.y; j++) {
+        for (int j=0; j<this->gridDim.y; j++) {
 
-            for (int i=0; i<this->dim.x; i++) {
+            for (int i=0; i<this->gridDim.x; i++) {
 
                 P voxelCenter;
                 this->center(i, j, k, voxelCenter);

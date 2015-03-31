@@ -529,27 +529,29 @@ void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
     int index = 0;
     string line;
 
+    BoundingBox bounds(P(0,0,0), P(1,1,-1));
     Color *material = new Color(this->MRGB.r ,this->MRGB.g ,this->MRGB.b);
 
-    if (skippedHeader) {
-        
-    } else {
-        assert(this->XYZC.x > 0 && this->XYZC.y > 0 && this->XYZC.z > 0);
-    }
+    assert(this->XYZC.x > 0 && this->XYZC.y > 0 && this->XYZC.z > 0);
 
-    BoundingBox bounds(P(0,0,0), P(1,1,-1));
+    // Assume each line contains a floating point density value:
+
+    shared_ptr<vector<Voxel> > voxels = make_shared<vector<Voxel> >();
+    voxels->reserve(100000);
 
     auto vb = new VoxelBuffer(this->XYZC, bounds, material);
 
-    // Assume each line contains a floating point density value:
     while (getline(is, line)) {
 
         line = trim(line);
 
         float density = this->readSingleDensity(count++, line);
 
+        //voxels->push_back(Voxel(density));
         (*vb)(index++) = Voxel(density);
     }
+
+    //auto vb = new VoxelBuffer(this->XYZC, voxels, bounds, material);
 
     this->objects.push_back(vb);
 }

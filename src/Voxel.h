@@ -43,25 +43,28 @@ class VoxelBuffer : public StdObject
         int sub2ind(int i, int j, int k) const;
         void ind2sub(int w, int& i, int& j, int& k) const;
         bool valid(int i, int j, int k) const;
+        glm::fvec3 computeVoxelDims() const;
 
     protected:
-        glm::ivec3 dim;
-        float vWidth, vHeight, vDepth;
+        glm::ivec3 gridDim; 
+        glm::fvec3 voxelDim; 
         std::shared_ptr<std::vector<Voxel> > buffer;
         Material* material;
 
     public:
         VoxelBuffer(glm::ivec3 dim, const BoundingBox& bounds, Material* material);
         VoxelBuffer(glm::ivec3 dim, std::shared_ptr<std::vector<Voxel> > voxels, const BoundingBox& bounds, Material* material);
-        ~VoxelBuffer();
+        VoxelBuffer(const VoxelBuffer& other);
+        virtual ~VoxelBuffer();
+        VoxelBuffer& operator=(const VoxelBuffer& other);
 
-        const glm::ivec3& getDimensions() const { return this->dim; }
+        const glm::ivec3& getDimensions() const { return this->gridDim; }
 
         virtual Material* getMaterial() const;
 
-        float getVoxelWidth()  const { return this->vWidth; }
-        float getVoxelHeight() const { return this->vHeight; }
-        float getVoxelDepth()  const { return this->vDepth; }
+        float getVoxelWidth()  const { return this->voxelDim.x; }
+        float getVoxelHeight() const { return this->voxelDim.y; }
+        float getVoxelDepth()  const { return this->voxelDim.z; }
 
         bool center(const P& p, P& center) const;
         bool center(int i, int j, int k, P& center) const;

@@ -70,7 +70,7 @@ VoxelBuffer::VoxelBuffer(ivec3 _dim
                         ,const BoundingBox& _bounds
                         ,Material* _material) :
     StdObject(_bounds, _material),
-    dim(_dim),
+    gridDim(_dim),
     material(_material)
 {
     assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
@@ -78,27 +78,51 @@ VoxelBuffer::VoxelBuffer(ivec3 _dim
     this->buffer = make_shared<vector<Voxel> >();
     this->buffer->resize(_dim.x * _dim.y * _dim.z);
 
-    this->vWidth  = (float)this->bounds.width() / this->dim.x;
-    this->vHeight = (float)this->bounds.height() / this->dim.y;
-    this->vDepth  = (float)this->bounds.depth() / this->dim.z;
+    this->voxelDim = this->computeVoxelDims();
 }
 
 VoxelBuffer::VoxelBuffer(ivec3 _dim
-                        ,std::shared_ptr<std::vector<Voxel> > _voxels
+                        ,std::shared_ptr<std::vector<Voxel> > _buffer
                         ,const BoundingBox& _bounds
                         ,Material* _material) :
     StdObject(_bounds, _material),
-    dim(_dim),
+    gridDim(_dim),
     material(_material)
 {
     assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
-    int n = _dim.x * _dim.y * _dim.z;
-    assert(_voxels && n == _voxels->size());
+    assert(_buffer && (_dim.x * _dim.y * _dim.z) == buffer->size());
+
+    this->buffer = _buffer;
+    this->voxelDim = this->computeVoxelDims();
+}
+
+VoxelBuffer::VoxelBuffer(const VoxelBuffer& other) :
+    StdObject(other.bounds, other.material),
+    gridDim(other.gridDim),
+    voxelDim(other.voxelDim),
+    buffer(other.buffer),
+    material(other.material)
+{
+
 }
 
 VoxelBuffer::~VoxelBuffer()
 {
 
+}
+
+VoxelBuffer& VoxelBuffer::operator=(const VoxelBuffer& other)
+{
+    if (this == &other) {
+        return *this;
+    }
+
+    this->gridDim  = other.gridDim;
+    this->voxelDim = other.voxelDim;
+    this->buffer   = other.buffer;
+    this->material = other.material;
+
+    return *this;
 }
 
 /*******************************************************************************
@@ -164,9 +188,9 @@ bool VoxelBuffer::center(const P& p, P& center) const
 
     auto p1   = this->bounds.getP1();
     auto p2   = this->bounds.getP2();
-    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
-    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
-    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->gridDim.x);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->gridDim.y);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->gridDim.z);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
@@ -190,9 +214,9 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
 
     auto p1   = this->bounds.getP1();
     auto p2   = this->bounds.getP2();
-    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->dim.x);
-    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->dim.y);
-    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->dim.z);
+    float dx  = (x(p2) - x(p1)) / static_cast<float>(this->gridDim.x);
+    float dy  = (y(p2) - y(p1)) / static_cast<float>(this->gridDim.y);
+    float dz  = (z(p2) - z(p1)) / static_cast<float>(this->gridDim.z);
     float dx2 = 0.5f * dx; 
     float dy2 = 0.5f * dy;
     float dz2 = 0.5f * dz; 
@@ -228,9 +252,9 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
         dz = 0.0f;
     }
 
-    float xLoc  = dx * ((static_cast<float>(this->dim.x)) - this->getVoxelWidth());
-    float yLoc  = dy * ((static_cast<float>(this->dim.y)) - this->getVoxelHeight());
-    float zLoc  = dz * ((static_cast<float>(this->dim.z)) - this->getVoxelDepth());
+    float xLoc  = dx * ((static_cast<float>(this->gridDim.x)) - this->getVoxelWidth());
+    float yLoc  = dy * ((static_cast<float>(this->gridDim.y)) - this->getVoxelHeight());
+    float zLoc  = dz * ((static_cast<float>(this->gridDim.z)) - this->getVoxelDepth());
     float xCell = static_cast<int>(xLoc);
     float yCell = static_cast<int>(yLoc);
     float zCell = static_cast<int>(zLoc);
@@ -261,17 +285,17 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
     dy = unitRange(y(p), y(p1), y(p2));
     dz = unitRange(z(p), z(p1), z(p2));
 
-    float xLoc = dx * ((float)this->dim.x - 1);
+    float xLoc = dx * ((float)this->gridDim.x - 1);
     float xWeight = xLoc - floor(xLoc); 
     x1 = static_cast<int>(xLoc);
     x2 = static_cast<int>(ceil(xLoc));
 
-    float yLoc = dy * ((float)this->dim.y - 1);
+    float yLoc = dy * ((float)this->gridDim.y - 1);
     float yWeight = yLoc - floor(yLoc); 
     y1 = static_cast<int>(yLoc);
     y2 = static_cast<int>(ceil(yLoc));    
 
-    float zLoc = dz * ((float)this->dim.z - 1);
+    float zLoc = dz * ((float)this->gridDim.z - 1);
     float zWeight = zLoc - floor(zLoc); 
     z1 = static_cast<int>(zLoc);
     z2 = static_cast<int>(ceil(zLoc));
@@ -315,11 +339,21 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
 }
 
 /**
+ * Computes the world space dimensions of a single voxel
+ */
+glm::fvec3 VoxelBuffer::computeVoxelDims() const
+{
+    return fvec3(static_cast<float>(this->bounds.width()) / static_cast<float>(this->gridDim.x)
+                ,static_cast<float>(this->bounds.height()) / static_cast<float>(this->gridDim.y)
+                ,static_cast<float>(this->bounds.depth()) / static_cast<float>(this->gridDim.z));
+}
+
+/**
  * Convert a 3D index to a linear index
  */
 int VoxelBuffer::sub2ind(int i, int j, int k) const
 {
-    return i + (j * this->dim.x) + k * (this->dim.x * this->dim.y);
+    return i + (j * this->gridDim.x) + k * (this->gridDim.x * this->gridDim.y);
 }
 
 /** 
@@ -327,9 +361,9 @@ int VoxelBuffer::sub2ind(int i, int j, int k) const
  */
 void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
 {
-    i = w % this->dim.x;
-    j = (w / this->dim.x) % this->dim.y;
-    k = w / (this->dim.y * this->dim.x); 
+    i = w % this->gridDim.x;
+    j = (w / this->gridDim.x) % this->gridDim.y;
+    k = w / (this->gridDim.y * this->gridDim.x); 
 }
 
 /**
@@ -337,21 +371,21 @@ void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
  */
 bool VoxelBuffer::valid(int i, int j, int k) const
 {
-    return (i >= 0 && i < this->dim.x) &&
-           (j >= 0 && j < this->dim.y) &&
-           (k >= 0 && k < this->dim.z);
+    return (i >= 0 && i < this->gridDim.x) &&
+           (j >= 0 && j < this->gridDim.y) &&
+           (k >= 0 && k < this->gridDim.z);
 }
 
 ostream& operator<<(ostream &s, const VoxelBuffer &vb)
 {
-    s << "VoxelBuffer[" << vb.dim.x << "]"   <<
-                    "[" << vb.dim.y << "]"   <<
-                    "[" << vb.dim.z << "] {" << endl;
+    s << "VoxelBuffer[" << vb.gridDim.x << "]"   <<
+                    "[" << vb.gridDim.y << "]"   <<
+                    "[" << vb.gridDim.z << "] {" << endl;
     int q = 0, w = 0;
 
-    for (int k=0; k<vb.dim.z; k++) {
-        for (int j=0; j<vb.dim.y; j++) {
-            for (int i=0; i<vb.dim.x; i++) {
+    for (int k=0; k<vb.gridDim.z; k++) {
+        for (int j=0; j<vb.gridDim.y; j++) {
+            for (int i=0; i<vb.gridDim.x; i++) {
 
                 int ii,jj,kk;
                 w = vb.sub2ind(i,j,k);
