@@ -263,28 +263,18 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
 
     float xLoc = dx * ((float)this->dim.x - 1);
     float xWeight = xLoc - floor(xLoc); 
-    x1 = (int)floor(xLoc);
-    x2 = (int)ceil(xLoc);
+    x1 = static_cast<int>(xLoc);
+    x2 = static_cast<int>(ceil(xLoc));
 
     float yLoc = dy * ((float)this->dim.y - 1);
     float yWeight = yLoc - floor(yLoc); 
-    y1 = (int)floor(yLoc);
-    y2 = (int)ceil(yLoc);    
+    y1 = static_cast<int>(yLoc);
+    y2 = static_cast<int>(ceil(yLoc));    
 
     float zLoc = dz * ((float)this->dim.z - 1);
     float zWeight = zLoc - floor(zLoc); 
-    z1 = (int)floor(zLoc);
-    z2 = (int)ceil(zLoc);
-
-    // All index combinations:
-    // x1,y1,z1
-    // x1,y1,z2
-    // x1,y2,z1
-    // x1,y2,z2
-    // x2,y1,z1
-    // x2,y1,z2
-    // x2,y2,z1
-    // x2,y2,z2
+    z1 = static_cast<int>(zLoc);
+    z2 = static_cast<int>(ceil(zLoc));
 
     float x1y1z1D = 0.0f;
     float x1y1z2D = 0.0f;
