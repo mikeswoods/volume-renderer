@@ -25,7 +25,7 @@ class RenderContext
         RenderContext(float step
                      ,const std::list<Primitive*>& objects
                      ,const std::list<Light*>& lights
-                     ,const Color& bgColor)
+                     ,Color bgColor)
         { 
             this->step    = step;
             this->objects = objects;

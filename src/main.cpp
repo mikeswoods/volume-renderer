@@ -165,22 +165,15 @@ static shared_ptr<Configuration> readConfig(string filename
 	return config;
 }
 
-void intializeScene(shared_ptr<Configuration> config
-	               ,float& step
-	               ,Camera& camera
-	               ,Color& bgColor)
+/**
+ *
+ */
+void intializeCamera(shared_ptr<Configuration> config, Camera& camera)
 {
-	step = config->STEP;
-
-	// Camera
 	camera.setPosition(P(config->EYEP.x, config->EYEP.y, config->EYEP.z));
 	camera.setViewDir(V(config->VDIR.x, config->VDIR.y, config->VDIR.z));
 	camera.setUp(V(config->UVEC.x, config->UVEC.y, config->UVEC.z));
 	camera.setFOV(config->FOVY);
-
-	// Materials
-	bgColor = Color(config->BRGB.r, config->BRGB.g, config->BRGB.b);
-
 	camera.setAspectRatio(static_cast<float>(config->RESO.x) / static_cast<float>(config->RESO.y));
 }
 
@@ -198,7 +191,7 @@ void render(CImg<unsigned char>& output
 	}	
 
   #ifdef ENABLE_OPENMP
-  #pragma omp parallel for
+  #pragma omp parallel for collapse(2)
   #endif
 	for(int i=0; i<resolution.x; i++) {
 
@@ -225,7 +218,7 @@ void render(CImg<unsigned char>& output
 			output(i, j, 0, 2) = static_cast<unsigned char>(screenPixel.iB());
 		}
 
-		clog << "Rendering line: " << i << "\r";
+		//clog << "Rendering line: " << i << "\r";
 	}	
 
 	clog << endl << "Done!" << endl;
@@ -280,6 +273,20 @@ static void updateConfiguration(shared_ptr<Configuration> config
     assert(config->XYZC.z > 0);
     assert(config->FILE != "");
     assert(config->RESO.x > 0 && config->RESO.y > 0);
+
+    if (skipHeader) {
+      cout << "Setting default background color" << endl;
+      config->BRGB = fvec3(1.0f, 0.0f, 1.0f);
+    }
+
+    // Finally, for all of the objects that don't have set grid dimensions,
+    // set them according to the arguments passed to the program:
+    auto objects = config->getObjects();
+    for (auto i = objects.begin(); i != objects.end(); i++) {
+      if (!(*i)->hasLoadedDimensions()) {
+        (*i)->setDimensions(config->XYZC);
+      }
+    }
 }
 
 /******************************************************************************/
@@ -305,10 +312,7 @@ int main(int argc, char** argv)
 
   // Are header options present in the input?
   bool noHeader = options[NO_INPUT_HEADER].count() > 0;
-
-	float step;
 	Camera camera;
-	Color bgColor, matColor;
 
 	auto config = readConfig(argv[argc-1], 1, noHeader);
 
@@ -316,7 +320,7 @@ int main(int argc, char** argv)
   // the command line:
   updateConfiguration(config, options);
 
-	intializeScene(config, step, camera, bgColor);
+	intializeCamera(config, camera);
 
   // Dump all the values used in the render:
   cout << *config << endl;
@@ -325,9 +329,9 @@ int main(int argc, char** argv)
   // What we'll write to:
 	CImg<unsigned char> output(config->RESO.x, config->RESO.y, 1, 3, 0);
 
-	RenderContext context(step, config->getObjects(), config->getLights(), bgColor);
+	RenderContext context(config->STEP, config->getObjects(), config->getLights(), Color(config->BRGB));
 
-	context.setInterpolation(false);
+	context.setInterpolation(true);
 
 	render(output, config->RESO, camera, context);
 

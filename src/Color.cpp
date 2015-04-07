@@ -34,6 +34,18 @@ Color::Color(float _r, float _g, float _b) :
     b(unitClamp(_b))
 { }
 
+Color::Color(glm::ivec3 rgb) :
+    Color(rgb.r, rgb.g, rgb.b)
+{
+
+}
+
+Color::Color(glm::fvec3 rgb) :
+    Color(rgb.r, rgb.g, rgb.b)
+{
+
+}
+
 Color::Color(const Color& other)
 {
     this->r = other.r;

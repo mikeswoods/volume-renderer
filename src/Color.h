@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <iostream>
+#include <glm/glm.hpp>
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include "Material.h"
@@ -27,6 +28,8 @@ class Color : public Material
         Color();
         Color(int r, int g, int b);
         Color(float r, float g, float b);
+        Color(glm::ivec3 rgb);
+        Color(glm::fvec3 rgb);
         Color(const Color& other);
 
         void setR(float r);
