@@ -1,6 +1,21 @@
 #include <iostream>
 #include "Color.h"
 
+/******************************************************************************/
+
+using namespace std;
+using namespace Utils;
+
+/******************************************************************************/
+
+const std::shared_ptr<Color> Color::BLACK = make_shared<Color>(0.0f, 0.0f, 0.0f);
+const std::shared_ptr<Color> Color::WHITE = make_shared<Color>(0.0f, 0.0f, 0.0f);
+const std::shared_ptr<Color> Color::RED   = make_shared<Color>(1.0f, 0.0f, 0.0f);
+const std::shared_ptr<Color> Color::GREEN = make_shared<Color>(0.0f, 1.0f, 0.0f);
+const std::shared_ptr<Color> Color::BLUE  = make_shared<Color>(0.0f, 0.0f, 1.0f);
+
+/******************************************************************************/
+
 Color::Color()
 {
     this->r = this->g = this->b = 0.0f;
@@ -14,9 +29,9 @@ Color::Color(int r, int g, int b)
 }
 
 Color::Color(float _r, float _g, float _b) : 
-    r(Utils::unitClamp(_r)), 
-    g(Utils::unitClamp(_g)), 
-    b(Utils::unitClamp(_b))
+    r(unitClamp(_r)), 
+    g(unitClamp(_g)), 
+    b(unitClamp(_b))
 { }
 
 Color::Color(const Color& other)
@@ -26,45 +41,34 @@ Color::Color(const Color& other)
     this->b = other.b;
 }
 
-// Predefined colors:
-const Color Color::BLACK = Color(0.0f,0.0f,0.0f);
-const Color Color::WHITE = Color(0.0f,0.0f,0.0f);
-const Color Color::RED   = Color(1.0f,0.0f,0.0f);
-const Color Color::GREEN = Color(0.0f,1.0f,0.0f);
-const Color Color::BLUE  = Color(0.0f,0.0f,1.0f);
-
-////////////////////////////////////////////////////////////////////////////////
-// Setters
-////////////////////////////////////////////////////////////////////////////////
-///
 void Color::setR(float _r) 
 {
-    this->r = Utils::unitClamp(_r);
+    this->r = unitClamp(_r);
 }
 
 void Color::setG(float _g) 
 {
-    this->g = Utils::unitClamp(_g); 
+    this->g = unitClamp(_g); 
 }
 
 void Color::setB(float _b) 
 {
-    this->b = Utils::unitClamp(_b);
+    this->b = unitClamp(_b);
 }
 
 void Color::setR(int _r) 
 {
-    this->r = Utils::unitClamp((float)_r / 255.0f);
+    this->r = unitClamp((float)_r / 255.0f);
 }
 
 void Color::setG(int _g) 
 {   
-    this->g = Utils::unitClamp((float)_g / 255.0f);
+    this->g = unitClamp((float)_g / 255.0f);
 }
 
 void Color::setB(int _b) 
 {
-    this->b = Utils::unitClamp((float)_b / 255.0f);
+    this->b = unitClamp((float)_b / 255.0f);
 }
 
 // Simply ignore both position and origin: the same color is always returned
@@ -72,10 +76,6 @@ Color Color::colorAt(const P& position, const P& origin)
 {
     return *this;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Operations
-////////////////////////////////////////////////////////////////////////////////
 
 bool operator==(const Color& c1, const Color& c2)
 {
@@ -109,23 +109,19 @@ const Color operator/(const Color& c, const float scale)
 
 Color& Color::operator+=(const Color &c)
 {
-    this->r = Utils::unitClamp(this->r + c.r);
-    this->b = Utils::unitClamp(this->b + c.b);
-    this->g = Utils::unitClamp(this->g + c.g);
+    this->r = unitClamp(this->r + c.r);
+    this->b = unitClamp(this->b + c.b);
+    this->g = unitClamp(this->g + c.g);
     return *this;
 }
 
 Color& Color::operator-=(const Color &c)
 {
-    this->r = Utils::unitClamp(this->r - c.r);
-    this->b = Utils::unitClamp(this->b - c.b);
-    this->g = Utils::unitClamp(this->g - c.g);
+    this->r = unitClamp(this->r - c.r);
+    this->b = unitClamp(this->b - c.b);
+    this->g = unitClamp(this->g - c.g);
     return *this;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// To string
-////////////////////////////////////////////////////////////////////////////////
 
 std::ostream& operator<<(std::ostream& s, const Color& color)
 {

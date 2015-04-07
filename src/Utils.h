@@ -1,6 +1,7 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include <sstream>
 #include "R3.h"
 
 #define WHITESPACE_CHARS " \t\r\n"
@@ -40,6 +41,24 @@ namespace Utils {
                         ,float v010, float v011
                         ,float v100, float v101
                         ,float v110, float v111);
+
+    /**
+     * Converts the given string to a number
+     */
+    template<typename T> T toNumber(std::string str, bool& success)
+    {
+        std::istringstream ss(str);
+        T extract;
+        ss >> extract;
+
+        if (ss.bad()) {
+            success = false;
+            return 0;
+        }
+
+        success = true;
+        return extract;
+    };
 }
 
 #endif

@@ -8,7 +8,6 @@
 #include "BitmapTexture.h"
 #include "Config.h"
 #include "Light.h"
-#include "Box.h"
 #include "VoxelSphere.h"
 #include "VoxelCloud.h"
 #include "VoxelPyroclastic.h"
@@ -267,8 +266,12 @@ void Configuration::read(istream& is, bool skipHeader)
 
     this->readBody(is, skipHeader);
 
-    // Let there be light(s):
-    this->addLighting();
+    if (skipHeader) {
+
+    } else {
+        // Let there be light(s):
+        this->addLighting();
+    }
 }
 
 /******************************************************************************/
@@ -436,13 +439,13 @@ void NewConfigurationReader::readBody(istream& is, bool skippedHeader)
             }
         }
 
-        StdObject* obj     = nullptr;
-        Material *material = nullptr; 
+        Primitive* obj     = nullptr;
+        shared_ptr<Material> material(nullptr); 
 
         if (textureFile != "") {
-            material = new BitmapTexture(textureFile);
+            material = make_shared<BitmapTexture>(textureFile);
         } else {
-            material = new Color(this->MRGB.r, this->MRGB.g, this->MRGB.b);
+            material = make_shared<Color>(this->MRGB.r, this->MRGB.g, this->MRGB.b);
         }
 
         // Define the bounds of the object as a function of the radius and 
@@ -452,21 +455,13 @@ void NewConfigurationReader::readBody(istream& is, bool skippedHeader)
 
         if  (objectType == "sphere") {
 
-            obj = new VoxelSphere(radius
-                                 ,scale
-                                 ,this->XYZC.x
-                                 ,this->XYZC.y
-                                 ,this->XYZC.z
-                                 ,bounds
-                                 ,material);
+            obj = new VoxelSphere(radius, scale, this->XYZC, bounds, material);
 
         } else if (objectType == "cloud") {
 
             obj = new VoxelCloud(radius
                                 ,scale
-                                ,this->XYZC.x
-                                ,this->XYZC.y
-                                ,this->XYZC.z
+                                ,this->XYZC
                                 ,bounds
                                 ,material
                                 ,this->SEED
@@ -478,9 +473,7 @@ void NewConfigurationReader::readBody(istream& is, bool skippedHeader)
 
             obj = new VoxelPyroclastic(radius
                                       ,scale
-                                      ,this->XYZC.x
-                                      ,this->XYZC.y
-                                      ,this->XYZC.z
+                                      ,this->XYZC
                                       ,bounds
                                       ,material
                                       ,this->SEED
@@ -521,37 +514,39 @@ float OldConfigurationReader::readSingleDensity(int count, string line)
 }
 
 /**
- * Read the old version of body
+ * Read the old version of body. The configuration may contain a header 
+ * specifying various rendering parameters such as grid width/height/depth,
+ * ray marching step size, etc. or it may be just density data, with one
+ * value per line
  */
 void OldConfigurationReader::readBody(istream& is, bool skippedHeader)
 {
     int count = 0;
-    int index = 0;
     string line;
 
     BoundingBox bounds(P(0,0,0), P(1,1,-1));
-    Color *material = new Color(this->MRGB.r ,this->MRGB.g ,this->MRGB.b);
+    shared_ptr<Material> material = make_shared<Color>(this->MRGB.r, this->MRGB.g, this->MRGB.b);
 
-    assert(this->XYZC.x > 0 && this->XYZC.y > 0 && this->XYZC.z > 0);
-
-    // Assume each line contains a floating point density value:
-
-    shared_ptr<vector<Voxel> > voxels = make_shared<vector<Voxel> >();
-    voxels->reserve(100000);
-
-    auto vb = new VoxelBuffer(this->XYZC, bounds, material);
+    auto voxels = make_shared<vector<Voxel> >();
+    voxels->reserve(1024 * 1024);
 
     while (getline(is, line)) {
 
+        // Assume each line contains a floating point density value:
         line = trim(line);
-
         float density = this->readSingleDensity(count++, line);
 
-        //voxels->push_back(Voxel(density));
-        (*vb)(index++) = Voxel(density);
+        voxels->push_back(Voxel(density));
     }
 
-    //auto vb = new VoxelBuffer(this->XYZC, voxels, bounds, material);
+    auto vb = new VoxelBuffer(voxels, bounds, material);
+
+    if (skippedHeader) {
+        // Defer explicit dimensions for now
+    } else {
+        assert(this->XYZC.x > 0 && this->XYZC.y > 0 && this->XYZC.z > 0);
+        vb->setDimensions(this->XYZC);
+    }
 
     this->objects.push_back(vb);
 }

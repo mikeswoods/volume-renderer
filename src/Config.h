@@ -1,6 +1,7 @@
 #ifndef _CONFIGURATION_H
 #define _CONFIGURATION_H
 
+#include <memory>
 #include <iostream>
 #include <list>
 #include <string>
@@ -42,7 +43,7 @@ class Configuration
         /**
          * All objects defined
          */
-        list<StdObject*> objects;
+        list<Primitive*> objects;
 
         /**
          * All light instances encountered
@@ -130,7 +131,7 @@ class Configuration
 
         virtual void read(istream& s, bool skipHeader = false);
 
-        const list<StdObject*>& getObjects() const { return this->objects; };
+        const list<Primitive*>& getObjects() const { return this->objects; };
         const list<Light*>& getLights() const      { return this->lights; };
 
         friend ostream& operator<<(ostream& s, const Configuration& c);

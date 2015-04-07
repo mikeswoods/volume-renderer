@@ -9,7 +9,7 @@
 #include "Context.h"
 #include "Color.h"
 #include "Light.h"
-#include "StdObject.h"
+#include "Primitive.h"
 #include "Utils.h"
 #include "Voxel.h"
 
@@ -66,42 +66,45 @@ Voxel& Voxel::operator=(const Voxel& other)
 
 /******************************************************************************/
 
+/**
+ *
+ */
 VoxelBuffer::VoxelBuffer(ivec3 _dim
                         ,const BoundingBox& _bounds
-                        ,Material* _material) :
-    StdObject(_bounds, _material),
-    gridDim(_dim),
-    material(_material)
+                        ,std::shared_ptr<Material> _material) :
+    Primitive(_dim, _bounds, _material)
 {
-    assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
-
     this->buffer = make_shared<vector<Voxel> >();
-    this->buffer->resize(_dim.x * _dim.y * _dim.z);
-
-    this->voxelDim = this->computeVoxelDims();
+    this->buffer->resize(this->gridDim.x * this->gridDim.y * this->gridDim.z);
 }
 
+/**
+ *
+ */
 VoxelBuffer::VoxelBuffer(ivec3 _dim
-                        ,std::shared_ptr<std::vector<Voxel> > _buffer
+                        ,shared_ptr<vector<Voxel> > _buffer
                         ,const BoundingBox& _bounds
-                        ,Material* _material) :
-    StdObject(_bounds, _material),
-    gridDim(_dim),
-    material(_material)
+                        ,std::shared_ptr<Material> _material) :
+    Primitive(_dim, _bounds, _material)
 {
-    assert(_dim.x > 0 && _dim.y > 0 && _dim.z > 0);
-    assert(_buffer && (_dim.x * _dim.y * _dim.z) == buffer->size());
+    assert(_buffer);
+}
 
+/**
+ *
+ */
+VoxelBuffer::VoxelBuffer(shared_ptr<vector<Voxel> > _buffer
+                        ,const BoundingBox& _bounds
+                        ,std::shared_ptr<Material> _material) :
+    Primitive(_bounds, _material)
+{
+    assert(_buffer);
     this->buffer = _buffer;
-    this->voxelDim = this->computeVoxelDims();
 }
 
 VoxelBuffer::VoxelBuffer(const VoxelBuffer& other) :
-    StdObject(other.bounds, other.material),
-    gridDim(other.gridDim),
-    voxelDim(other.voxelDim),
-    buffer(other.buffer),
-    material(other.material)
+    Primitive(other),
+    buffer(other.buffer)
 {
 
 }
@@ -111,18 +114,16 @@ VoxelBuffer::~VoxelBuffer()
 
 }
 
-VoxelBuffer& VoxelBuffer::operator=(const VoxelBuffer& other)
+/*******************************************************************************
+ * Dimensioning
+ ******************************************************************************/
+
+/**
+ *
+ */
+bool VoxelBuffer::checkBufferSize(const glm::ivec3& dim, std::shared_ptr<std::vector<Voxel> > buffer) const
 {
-    if (this == &other) {
-        return *this;
-    }
-
-    this->gridDim  = other.gridDim;
-    this->voxelDim = other.voxelDim;
-    this->buffer   = other.buffer;
-    this->material = other.material;
-
-    return *this;
+    return static_cast<unsigned int>(dim.x * dim.y * dim.z) == buffer->size();
 }
 
 /*******************************************************************************
@@ -149,24 +150,22 @@ Voxel& VoxelBuffer::operator()(int i)
     return (*this->buffer)[i];
 }
 
-Material* VoxelBuffer::getMaterial() const
-{ 
-    return this->material;
-}
-
 /*******************************************************************************
  * Intersection
  ******************************************************************************/
 
 bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& context, Hit& hit)
 {
+    // Only proceed if the grid dimensions of the voxel buffer have been
+    // explictly set:
+    assert(this->hasLoadedDimensions());
+
     P entered, exited;
 
     if (!this->bounds.isHit(ray, entered, exited)) {
         return false;
     }
 
-    // Basic color accumulation:
     RayMarch rm       = rayMarch(context, *this, entered, exited);
     hit.color         = rm.color;
     hit.transmittance = rm.transmittance;
@@ -179,7 +178,9 @@ bool VoxelBuffer::intersects(const Ray& ray, const RenderContext& context, Hit& 
  * If this method returns false, point o does not fall within a voxel
  */
 bool VoxelBuffer::center(const P& p, P& center) const
-{   
+{
+    assert(this->hasLoadedDimensions());
+
     int i,j,k;
 
     if (!this->positionToIndex(p, i, j, k)) {
@@ -208,6 +209,8 @@ bool VoxelBuffer::center(const P& p, P& center) const
  */
 bool VoxelBuffer::center(int i, int j, int k, P& center) const
 {
+    assert(this->hasLoadedDimensions());
+
     if (!this->valid(i, j, k)) {
         return false;
     }
@@ -234,6 +237,8 @@ bool VoxelBuffer::center(int i, int j, int k, P& center) const
  */
 bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
 {
+    assert(this->hasLoadedDimensions());
+
     auto p1  = this->bounds.getP1();
     auto p2  = this->bounds.getP2();
     float dx = unitRange(x(p), x(p1), x(p2));
@@ -275,30 +280,28 @@ bool VoxelBuffer::positionToIndex(const P& p, int& i, int& j, int& k) const
  */
 float VoxelBuffer::getInterpolatedDensity(const P& p) const
 {
-    float dx, dy, dz;
-    int x1, x2, y1, y2, z1, z2;
+    assert(this->hasLoadedDimensions());
 
-    P p1 = this->bounds.getP1();
-    P p2 = this->bounds.getP2();
-
-    dx = unitRange(x(p), x(p1), x(p2));
-    dy = unitRange(y(p), y(p1), y(p2));
-    dz = unitRange(z(p), z(p1), z(p2));
+    auto p1  = this->bounds.getP1();
+    auto p2  = this->bounds.getP2();
+    float dx = unitRange(x(p), x(p1), x(p2));
+    float dy = unitRange(y(p), y(p1), y(p2));
+    float dz = unitRange(z(p), z(p1), z(p2));
 
     float xLoc = dx * ((float)this->gridDim.x - 1);
     float xWeight = xLoc - floor(xLoc); 
-    x1 = static_cast<int>(xLoc);
-    x2 = static_cast<int>(ceil(xLoc));
+    int x1 = static_cast<int>(xLoc);
+    int x2 = static_cast<int>(ceil(xLoc));
 
     float yLoc = dy * ((float)this->gridDim.y - 1);
     float yWeight = yLoc - floor(yLoc); 
-    y1 = static_cast<int>(yLoc);
-    y2 = static_cast<int>(ceil(yLoc));    
+    int y1 = static_cast<int>(yLoc);
+    int y2 = static_cast<int>(ceil(yLoc));    
 
     float zLoc = dz * ((float)this->gridDim.z - 1);
     float zWeight = zLoc - floor(zLoc); 
-    z1 = static_cast<int>(zLoc);
-    z2 = static_cast<int>(ceil(zLoc));
+    int z1 = static_cast<int>(zLoc);
+    int z2 = static_cast<int>(ceil(zLoc));
 
     float x1y1z1D = 0.0f;
     float x1y1z2D = 0.0f;
@@ -339,20 +342,12 @@ float VoxelBuffer::getInterpolatedDensity(const P& p) const
 }
 
 /**
- * Computes the world space dimensions of a single voxel
- */
-glm::fvec3 VoxelBuffer::computeVoxelDims() const
-{
-    return fvec3(static_cast<float>(this->bounds.width()) / static_cast<float>(this->gridDim.x)
-                ,static_cast<float>(this->bounds.height()) / static_cast<float>(this->gridDim.y)
-                ,static_cast<float>(this->bounds.depth()) / static_cast<float>(this->gridDim.z));
-}
-
-/**
  * Convert a 3D index to a linear index
  */
 int VoxelBuffer::sub2ind(int i, int j, int k) const
 {
+    assert(this->hasLoadedDimensions());
+
     return i + (j * this->gridDim.x) + k * (this->gridDim.x * this->gridDim.y);
 }
 
@@ -361,6 +356,8 @@ int VoxelBuffer::sub2ind(int i, int j, int k) const
  */
 void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
 {
+    assert(this->hasLoadedDimensions());
+
     i = w % this->gridDim.x;
     j = (w / this->gridDim.x) % this->gridDim.y;
     k = w / (this->gridDim.y * this->gridDim.x); 
@@ -371,6 +368,8 @@ void VoxelBuffer::ind2sub(int w, int& i, int& j, int& k) const
  */
 bool VoxelBuffer::valid(int i, int j, int k) const
 {
+    assert(this->hasLoadedDimensions());
+
     return (i >= 0 && i < this->gridDim.x) &&
            (j >= 0 && j < this->gridDim.y) &&
            (k >= 0 && k < this->gridDim.z);
@@ -386,7 +385,6 @@ ostream& operator<<(ostream &s, const VoxelBuffer &vb)
     for (int k=0; k<vb.gridDim.z; k++) {
         for (int j=0; j<vb.gridDim.y; j++) {
             for (int i=0; i<vb.gridDim.x; i++) {
-
                 int ii,jj,kk;
                 w = vb.sub2ind(i,j,k);
                 vb.ind2sub(w, ii, jj, kk);
@@ -411,6 +409,8 @@ float Q(const VoxelBuffer& vb
        ,const P& X
        ,const V& N)
 {
+    assert(vb.hasLoadedDimensions());
+
     int i = -1;
     int j = -1;
     int k = -1;

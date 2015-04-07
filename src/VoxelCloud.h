@@ -11,11 +11,9 @@ class VoxelCloud : public VoxelBuffer
     public:
         VoxelCloud(float radius
                   ,float scale
-                  ,int xDim
-                  ,int yDim
-                  ,int zDim
+                  ,glm::ivec3 dim
                   ,const BoundingBox& bounds
-                  ,Material* material
+                  ,std::shared_ptr<Material> material
                   ,int seed
                   ,int octaves
                   ,float freq

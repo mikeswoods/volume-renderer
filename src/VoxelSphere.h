@@ -1,6 +1,7 @@
 #ifndef _VOXEL_SPHERE
 #define _VOXEL_SPHERE
 
+#include <memory>
 #include "Voxel.h"
 
 class VoxelSphere : public VoxelBuffer
@@ -11,11 +12,9 @@ class VoxelSphere : public VoxelBuffer
     public:
         VoxelSphere(float radius
                    ,float scale
-                   ,int xDim
-                   ,int yDim
-                   ,int zv
+                   ,glm::ivec3 dim
                    ,const BoundingBox& bounds
-                   ,Material* material);
+                   ,std::shared_ptr<Material> material);
 
         float getScale()  { return this->scale; };
         float getRadius() { return this->radius; };

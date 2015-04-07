@@ -10,11 +10,11 @@
 #include <optionparser.h>
 #include <CImg.h>
 #include "R3.h"
+#include "Utils.h"
 #include "Color.h"
 #include "Camera.h"
-#include "StdObject.h"
+#include "Primitive.h"
 #include "Light.h"
-#include "Box.h"
 #include "Config.h"
 #include "Context.h"
 #include "Voxel.h"
@@ -24,6 +24,7 @@
 using namespace std;
 using namespace cimg_library;
 using namespace glm;
+using namespace Utils;
 
 /******************************************************************************/
 
@@ -42,7 +43,9 @@ enum OptionIndex {
   ,GRID_WIDTH
   ,GRID_HEIGHT
   ,GRID_DEPTH
-  ,STEP
+  ,OUTPUT_FILENAME
+  ,NO_INPUT_HEADER
+  ,TRILINEAR_INTERPOLATION
 };
 
 const option::Descriptor usage[] =
@@ -53,7 +56,7 @@ const option::Descriptor usage[] =
     ,"" 
     ,""
     ,option::Arg::None
-    ,"USAGE: ./smokeSimulation [options]\n\n Options:" 
+    ,"USAGE: VolumeRenderer [options] <input-file>\n\n Options:" 
   },
   {
      HELP
@@ -66,8 +69,8 @@ const option::Descriptor usage[] =
   {
      STEP_SIZE
     ,0
-    ,"W"
-    ,"width"
+    ,"S"
+    ,"step"
     ,option::Arg::Optional
     ,"  -S/--step \t\tStep size (float)"
   },
@@ -77,7 +80,7 @@ const option::Descriptor usage[] =
     ,"W"
     ,"width"
     ,option::Arg::Optional
-    ,"  -W/--width \t\tGrid width (X), in cells"
+    ,"  -W/--width \t\tGrid width (X), in cells (int)"
   },
   {
      GRID_HEIGHT
@@ -85,7 +88,7 @@ const option::Descriptor usage[] =
     ,"H"
     ,"height"
     ,option::Arg::Optional
-    ,"  -H/--height \t\tGrid height (Y), in cells"
+    ,"  -H/--height \t\tGrid height (Y), in cells (int)"
   },
   {
      GRID_DEPTH
@@ -93,7 +96,31 @@ const option::Descriptor usage[] =
     ,"D"
     ,"depth"
     ,option::Arg::Optional
-    ,"  -D/--depth \t\tGrid depth (Z), in cells"
+    ,"  -D/--depth \t\tGrid depth (Z), in cells (int)"
+  },
+  {
+     OUTPUT_FILENAME
+    ,0
+    ,"o"
+    ,"output"
+    ,option::Arg::Optional
+    ,"  -o/--output \t\tOutput filename (string)"
+  },
+  {
+     NO_INPUT_HEADER
+    ,0
+    ,"N"
+    ,"no-header"
+    ,option::Arg::None
+    ,"  -N/--no-header \t\tSpecifies that the input file does not contain a header. If provided, -o/--output must be specified as well"
+  },
+  {
+     TRILINEAR_INTERPOLATION
+    ,0
+    ,"I"
+    ,"interpolation"
+    ,option::Arg::None
+    ,"  -I/--interpolation \t\tEnable trilinear interpolation"
   },
   {
      UNKNOWN
@@ -101,12 +128,13 @@ const option::Descriptor usage[] =
     ,""
     ,""
     ,option::Arg::None
-    ,"\nExamples:\n"
-     "  smokeSimulation --unknown -- --this_is_no_option\n"
-     "  smokeSimulation -unk --plus -ppp file1 file2\n" 
+    ,""
   },
   {0, 0, 0, 0, 0, 0}
 };
+
+/******************************************************************************/
+
 
 /******************************************************************************/
 
@@ -140,9 +168,7 @@ static shared_ptr<Configuration> readConfig(string filename
 void intializeScene(shared_ptr<Configuration> config
 	               ,float& step
 	               ,Camera& camera
-	               ,Color& bgColor
-	               ,string& filename
-	               ,ivec2& resolution)
+	               ,Color& bgColor)
 {
 	step = config->STEP;
 
@@ -155,44 +181,36 @@ void intializeScene(shared_ptr<Configuration> config
 	// Materials
 	bgColor = Color(config->BRGB.r, config->BRGB.g, config->BRGB.b);
 
-	filename   = config->FILE; 
-    resolution = config->RESO;
-
 	camera.setAspectRatio(static_cast<float>(config->RESO.x) / static_cast<float>(config->RESO.y));
-}
-
-static void printUsageAndExit(const char* name)
-{
-	cerr << "Usage: " << name << ": <scene-file>" << endl;
-	exit(1);
 }
 
 /******************************************************************************/
 
 void render(CImg<unsigned char>& output
-	       ,int resX
-	       ,int resY
-	       ,const Camera& camera
-	       ,const RenderContext& context)
+	         ,ivec2 resolution
+	         ,const Camera& camera
+	         ,const RenderContext& context)
 {
-	list<StdObject*> objects = context.getObjects();
+	auto objects = context.getObjects();
 
 	if (context.getInterpolation()) {
 		cout << "*** USING TRILINEAR INTERPOLATION ***" << endl;
 	}	
 
-	for(int i=0; i<resX; i++) {
+  #ifdef ENABLE_OPENMP
+  #pragma omp parallel for
+  #endif
+	for(int i=0; i<resolution.x; i++) {
 
-		for (int j=0; j<resY; j++) {
+		for (int j=0; j<resolution.y; j++) {
 
-			Ray ray = camera.spawnRay(i, j, resX, resY);
+			Ray ray = camera.spawnRay(i, j, resolution.x, resolution.y);
 			Hit hit;
 
 			Color accumColor(0,0,0);
 			float accumTransmittance = 1.0f;
 
 			for (auto oi = objects.begin(); oi != objects.end(); oi++) {
-
 				if ((*oi)->intersects(ray, context, hit)) {
 					accumColor += hit.color;
 					accumTransmittance *= hit.transmittance;
@@ -215,37 +233,105 @@ void render(CImg<unsigned char>& output
 
 /******************************************************************************/
 
+static void updateConfiguration(shared_ptr<Configuration> config
+                               ,option::Option* options
+                               ,bool skipHeader = false)
+{
+    bool success = false;
+
+    // Step size
+    if (options[STEP_SIZE].count() > 0 && options[STEP_SIZE].first()->arg != nullptr) {
+        float stepSize = toNumber<float>(options[STEP_SIZE].first()->arg, success);
+        config->STEP   = stepSize;
+    }
+
+    // Voxel grid width
+    if (options[GRID_WIDTH].count() > 0 && options[GRID_WIDTH].first()->arg != nullptr) {
+        int width  = toNumber<int>(options[GRID_WIDTH].first()->arg, success);
+        if (success) {
+            config->XYZC.x = width;
+        }
+    }
+
+    // Voxel grid height
+    if (options[GRID_HEIGHT].count() > 0 && options[GRID_HEIGHT].first()->arg != nullptr) {
+        int height  = toNumber<int>(options[GRID_HEIGHT].first()->arg, success);
+        if (success) {
+            config->XYZC.y = height;
+        }
+    }
+
+    // Voxel grid depth
+    if (options[GRID_HEIGHT].count() > 0 && options[GRID_HEIGHT].first()->arg != nullptr) {
+        int depth  = toNumber<int>(options[GRID_HEIGHT].first()->arg, success);
+        if (success) {
+            config->XYZC.z = depth;
+        }
+    }
+
+    // Output file name
+    if (options[OUTPUT_FILENAME].count() > 0 && options[OUTPUT_FILENAME].first()->arg != nullptr) {
+       config->FILE  = string(options[OUTPUT_FILENAME].first()->arg);
+    }
+
+    assert(config->STEP > 0.0f);
+    assert(config->XYZC.x > 0);
+    assert(config->XYZC.y > 0);
+    assert(config->XYZC.z > 0);
+    assert(config->FILE != "");
+    assert(config->RESO.x > 0 && config->RESO.y > 0);
+}
+
+/******************************************************************************/
+
 int main(int argc, char** argv) 
 {
-	if (argc < 2) {
-		printUsageAndExit(argv[0]);
-	}
+  // Skip program name argv[0] if present:
+  argc -= argc > 0;
+  argv += argc > 0;
+
+  option::Stats  stats(usage, argc, argv);
+  option::Option options[64], buffer[4096];
+  option::Parser parse(usage, argc, argv, options, buffer);
+
+  if (parse.error()) {
+      exit(EXIT_FAILURE);
+  }
+
+  if (argc < 1 || options[HELP]) {
+      option::printUsage(std::cout, usage);
+      exit(EXIT_SUCCESS);
+  }
+
+  // Are header options present in the input?
+  bool noHeader = options[NO_INPUT_HEADER].count() > 0;
 
 	float step;
 	Camera camera;
 	Color bgColor, matColor;
-	string filename;
-	ivec2 resolution;
-	bool doInterpolation = false;
 
-	if (argc >= 3 && string(argv[2]) == "interpolate") {
-		doInterpolation = true;
-	}	
+	auto config = readConfig(argv[argc-1], 1, noHeader);
 
-	auto config = readConfig(argv[1], 1, false);
+  // Merge in and override what's in the configuration with options from
+  // the command line:
+  updateConfiguration(config, options);
 
-	intializeScene(config, step, camera, bgColor, filename, resolution);
+	intializeScene(config, step, camera, bgColor);
 
-	cout << *config << endl
-	     << camera << endl;
+  // Dump all the values used in the render:
+  cout << *config << endl;
+	cout << camera << endl;
 
-	CImg<unsigned char> output(resolution.x, resolution.y, 1, 3, 0);
+  // What we'll write to:
+	CImg<unsigned char> output(config->RESO.x, config->RESO.y, 1, 3, 0);
+
 	RenderContext context(step, config->getObjects(), config->getLights(), bgColor);
-	context.setInterpolation(doInterpolation);
 
-	render(output, resolution.x, resolution.y, camera, context);
+	context.setInterpolation(false);
 
-	output.save(filename.c_str());
+	render(output, config->RESO, camera, context);
+
+	output.save(config->FILE.c_str());
 
 	return 0;
 }

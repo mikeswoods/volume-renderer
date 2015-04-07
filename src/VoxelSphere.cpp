@@ -3,12 +3,10 @@
 
 VoxelSphere::VoxelSphere(float radius
                         ,float scale
-                        ,int xDim
-                        ,int yDim
-                        ,int zDim
+                        ,glm::ivec3 dim
                         ,const BoundingBox& bounds
-                        ,Material* material) :
-VoxelBuffer(glm::ivec3(xDim, yDim, zDim), bounds, material)
+                        ,std::shared_ptr<Material> material) :
+VoxelBuffer(dim, bounds, material)
 { 
     this->radius = radius;
     this->scale  = scale;

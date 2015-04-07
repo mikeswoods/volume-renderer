@@ -1,6 +1,7 @@
 #ifndef _COLOR_H
 #define _COLOR_H
 
+#include <memory>
 #include <iostream>
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -17,11 +18,11 @@ class Color : public Material
         float r, g, b;
 
     public:
-        const static Color BLACK;
-        const static Color WHITE;
-        const static Color RED;
-        const static Color GREEN;
-        const static Color BLUE;
+        const static std::shared_ptr<Color> BLACK;
+        const static std::shared_ptr<Color> WHITE;
+        const static std::shared_ptr<Color> RED;
+        const static std::shared_ptr<Color> GREEN;
+        const static std::shared_ptr<Color> BLUE;
 
         Color();
         Color(int r, int g, int b);
